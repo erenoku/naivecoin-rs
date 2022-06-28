@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::block::Block;
 use crate::{BLOCK_GENERATION_INTERVAL, DIFFICULTY_ADJUSTMENT_INTERVAL};
 
@@ -45,6 +47,11 @@ impl BlockChain {
             &self.blocks[self.blocks.len() - DIFFICULTY_ADJUSTMENT_INTERVAL as usize];
         let time_expected = (BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL) as u64;
         let time_taken = latest_block.timestamp - prev_adjustment_block.timestamp;
+        info!(
+            "time taken: {} time expected: {}",
+            time_taken, time_expected
+        );
+
         if time_taken < time_expected / 2 {
             prev_adjustment_block.difficulty + 1
         } else if time_taken > time_expected * 2 {

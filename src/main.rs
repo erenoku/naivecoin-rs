@@ -1,9 +1,7 @@
-use log::{info, warn};
+use log::info;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::sync::RwLock;
 use std::thread;
 

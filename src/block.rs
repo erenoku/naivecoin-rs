@@ -30,13 +30,12 @@ impl Block {
 
     /// check if the next block is valid for the given previous block
     pub fn is_valid_next_block(next: &Block, prev: &Block) -> bool {
-        if prev.index + 1 != next.index {
-            return false;
-        } else if prev.hash != next.previous_hash {
-            return false;
-        } else if next.calculate_hash() != next.hash {
-            return false;
-        } else if !Block::is_valid_timestamp(next, prev) {
+        if prev.index + 1 != next.index
+            || prev.hash != next.previous_hash
+            || next.calculate_hash() != next.hash
+            || !Block::hash_matches_difficulty(&next.hash, &next.difficulty)
+            || !Block::is_valid_timestamp(next, prev)
+        {
             return false;
         }
 
@@ -82,24 +81,14 @@ impl Block {
             .unwrap()
             .as_secs();
         let difficulty = BLOCK_CHAIN.read().unwrap().get_difficulty();
-        let next_hash = Block::calculate_hash_from_data(
-            &next_index,
-            &prev_block.hash,
-            &next_timestamp,
-            &block_data,
-            &difficulty,
-            &0u32,
-        );
 
-        Block {
-            index: next_index,
-            previous_hash: prev_block.hash,
-            timestamp: next_timestamp,
-            data: block_data,
-            hash: next_hash,
+        Block::find_block(
+            next_index,
+            prev_block.hash,
+            next_timestamp,
+            block_data,
             difficulty,
-            nonce: 0,
-        }
+        )
     }
 
     pub fn find_block(
@@ -117,7 +106,7 @@ impl Block {
                 &timestamp,
                 &data,
                 &difficulty,
-                &0u32,
+                &nonce,
             );
 
             if Block::hash_matches_difficulty(&hash, &difficulty) {
@@ -135,13 +124,13 @@ impl Block {
         }
     }
 
-    fn hash_matches_difficulty(hash: &String, difficulty: &u32) -> bool {
+    fn hash_matches_difficulty(hash: &str, difficulty: &u32) -> bool {
         let bin = Block::hex_to_bin(hash);
 
         bin.starts_with("0".repeat(*difficulty as usize).as_str())
     }
 
-    fn hex_to_bin(hex: &String) -> String {
+    fn hex_to_bin(hex: &str) -> String {
         let mut bin = String::new();
 
         for char in hex.chars() {

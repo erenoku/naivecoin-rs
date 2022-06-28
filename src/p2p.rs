@@ -1,7 +1,7 @@
-use log::{error, info};
+use log::info;
 use mio::event::Event;
 use mio::net::{TcpListener, TcpStream};
-use mio::{Events, Interest, Poll, Registry, Token};
+use mio::{Events, Interest, Poll, Token};
 use once_cell::sync::Lazy;
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
@@ -146,12 +146,7 @@ pub fn init_p2p_server(port: String) -> JoinHandle<()> {
                         let mut c = CONNECTIONS.write().unwrap();
                         // Maybe received an event for a TCP connection.
                         let done = if let Some(connection) = c.get_mut(&token) {
-                            handle_connection_event(
-                                POLL.read().unwrap().registry(),
-                                connection,
-                                event,
-                            )
-                            .unwrap()
+                            handle_connection_event(connection, event).unwrap()
                         } else {
                             // Sporadic events happen, we can safely ignore them.
                             false
@@ -173,11 +168,7 @@ pub fn init_p2p_server(port: String) -> JoinHandle<()> {
 }
 
 /// Returns `true` if the connection is done.
-fn handle_connection_event(
-    registry: &Registry,
-    connection: &mut TcpStream,
-    event: &Event,
-) -> io::Result<bool> {
+fn handle_connection_event(connection: &mut TcpStream, event: &Event) -> io::Result<bool> {
     if event.is_readable() {
         let mut connection_closed = false;
         let mut received_data = vec![0; 4096];
