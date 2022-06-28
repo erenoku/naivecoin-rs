@@ -52,8 +52,7 @@ impl Message {
                 BLOCK_CHAIN
                     .write()
                     .unwrap()
-                    .blocks
-                    .push(latest_block_received.to_owned());
+                    .add(latest_block_received.clone());
 
                 thread::spawn(|| {
                     Message {

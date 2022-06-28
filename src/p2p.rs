@@ -99,11 +99,6 @@ pub fn init_p2p_server(port: String) -> JoinHandle<()> {
             .unwrap();
 
         loop {
-            // accept connections and process them, spawning a new thread for each one
-            // for stream in listener.incoming() {
-            //     thread::spawn(move || handle_getting(stream.unwrap())); // TODO: unwrap
-            // }
-
             POLL.write().unwrap().poll(&mut events, None).unwrap();
 
             for event in &events {
@@ -162,9 +157,7 @@ pub fn init_p2p_server(port: String) -> JoinHandle<()> {
                             false
                         };
                         if done {
-                            if let Some(mut connection) =
-                                CONNECTIONS.write().unwrap().remove(&token)
-                            {
+                            if let Some(mut connection) = c.remove(&token) {
                                 POLL.write()
                                     .unwrap()
                                     .registry()
@@ -185,30 +178,6 @@ fn handle_connection_event(
     connection: &mut TcpStream,
     event: &Event,
 ) -> io::Result<bool> {
-    // if event.is_writable() {
-    //     // We can (maybe) write to the connection.
-    //     match connection.write(DATA) {
-    //         // We want to write the entire `DATA` buffer in a single go. If we
-    //         // write less we'll return a short write error (same as
-    //         // `io::Write::write_all` does).
-    //         Ok(n) if n < DATA.len() => return Err(io::ErrorKind::WriteZero.into()),
-    //         Ok(_) => {
-    //             // After we've written something we'll reregister the connection
-    //             // to only respond to readable events.
-    //             registry.reregister(connection, event.token(), Interest::READABLE)?
-    //         }
-    //         // Would block "errors" are the OS's way of saying that the
-    //         // connection is not actually ready to perform this I/O operation.
-    //         Err(ref err) if would_block(err) => {}
-    //         // Got interrupted (how rude!), we'll try again.
-    //         Err(ref err) if interrupted(err) => {
-    //             return handle_connection_event(registry, connection, event)
-    //         }
-    //         // Other errors we'll consider fatal.
-    //         Err(err) => return Err(err),
-    //     }
-    // }
-
     if event.is_readable() {
         let mut connection_closed = false;
         let mut received_data = vec![0; 4096];
