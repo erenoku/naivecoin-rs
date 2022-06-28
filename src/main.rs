@@ -1,4 +1,4 @@
-use log::warn;
+use log::{info, warn};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -27,6 +27,10 @@ static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
 
 static PEERS: Lazy<RwLock<Vec<String>>> = Lazy::new(|| RwLock::new(vec![]));
 
+// in seconds
+const BLOCK_GENERATION_INTERVAL: u32 = 10;
+const DIFFICULTY_ADJUSTMENT_INTERVAL: u32 = 10;
+
 #[derive(Deserialize, Debug, Serialize, Clone)]
 struct Config {
     http_port: String,
@@ -45,6 +49,7 @@ impl Config {
 }
 
 fn main() {
+    env_logger::init();
     let config = Config::from_env();
 
     for peer in config.initial_peers.split(',') {
@@ -62,6 +67,11 @@ fn main() {
         }
         .send_to_peer(&token);
     }
+
+    info!(
+        "server running on p2p port: {} and http port: {}",
+        config.p2p_port, config.http_port
+    );
 
     let http_port = config.http_port.clone(); // will go inside move closure
     let http_handler = thread::spawn(move || init_http_server(http_port).unwrap());

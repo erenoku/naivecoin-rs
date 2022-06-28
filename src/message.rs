@@ -48,9 +48,6 @@ impl Message {
         let latest_block_held = BLOCK_CHAIN.read().unwrap().get_latest();
 
         if latest_block_received.index > latest_block_held.index {
-            // blockchain possibly behind. We got: {}, Peer got: {}
-            // latest_block_held.index, latest_block_received.index
-
             if latest_block_held.hash == latest_block_received.previous_hash {
                 BLOCK_CHAIN
                     .write()

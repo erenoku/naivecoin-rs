@@ -241,14 +241,14 @@ fn handle_connection_event(
             let received_data = &received_data[..bytes_read];
             if let Ok(str_buf) = from_utf8(received_data) {
                 handle_receive_msg(str_buf, connection);
-                println!("Received data: {}", str_buf.trim_end());
+                info!("Received data: {}", str_buf.trim_end());
             } else {
-                println!("Received (none UTF-8) data: {:?}", received_data);
+                info!("Received (none UTF-8) data: {:?}", received_data);
             }
         }
 
         if connection_closed {
-            println!("Connection closed");
+            info!("Connection closed");
             return Ok(true);
         }
     }
