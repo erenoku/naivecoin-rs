@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{chain::BlockChain, BLOCK_CHAIN};
+use crate::{chain::BlockChain, difficulter::Difficulter, validator::Validator, BLOCK_CHAIN};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Block {
@@ -30,26 +30,11 @@ impl Block {
 
     /// check if the next block is valid for the given previous block
     pub fn is_valid_next_block(next: &Block, prev: &Block) -> bool {
-        if prev.index + 1 != next.index
-            || prev.hash != next.previous_hash
-            || next.calculate_hash() != next.hash
-            || !Block::hash_matches_difficulty(&next.hash, &next.difficulty)
-            || !Block::is_valid_timestamp(next, prev)
-        {
-            return false;
+        if Validator::is_valid(prev, next) {
+            return true;
         }
 
-        true
-    }
-
-    fn is_valid_timestamp(next: &Block, prev: &Block) -> bool {
-        // TODO: timezone??
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        prev.timestamp - 60 < next.timestamp || now + 60 < next.timestamp
+        false
     }
 
     fn calculate_hash_from_data(
@@ -80,7 +65,7 @@ impl Block {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let difficulty = BLOCK_CHAIN.read().unwrap().get_difficulty();
+        let difficulty = Difficulter::get_difficulty(&BLOCK_CHAIN.read().unwrap());
 
         Block::find_block(
             next_index,
@@ -109,7 +94,7 @@ impl Block {
                 &nonce,
             );
 
-            if Block::hash_matches_difficulty(&hash, &difficulty) {
+            if Validator::hash_matches_difficulty(&hash, &difficulty) {
                 return Self {
                     index,
                     previous_hash,
@@ -122,69 +107,5 @@ impl Block {
             }
             nonce += 1;
         }
-    }
-
-    fn hash_matches_difficulty(hash: &str, difficulty: &u32) -> bool {
-        let bin = Block::hex_to_bin(hash);
-
-        bin.starts_with("0".repeat(*difficulty as usize).as_str())
-    }
-
-    fn hex_to_bin(hex: &str) -> String {
-        let mut bin = String::new();
-
-        for char in hex.chars() {
-            let a = match char {
-                '0' => "0000",
-                '1' => "0001",
-                '2' => "0010",
-                '3' => "0011",
-                '4' => "0100",
-                '5' => "0101",
-                '6' => "0110",
-                '7' => "0111",
-                '8' => "1000",
-                '9' => "1001",
-                'a' => "1010",
-                'b' => "1011",
-                'c' => "1100",
-                'd' => "1101",
-                'e' => "1110",
-                'f' => "1111",
-                'A' => "1010",
-                'B' => "1011",
-                'C' => "1100",
-                'D' => "1101",
-                'E' => "1110",
-                'F' => "1111",
-                e => panic!("sha256 hash contains invalid character: {}", e),
-            };
-            bin.push_str(a);
-        }
-
-        bin
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hash_matches_difficulty() {
-        assert!(Block::hash_matches_difficulty(
-            &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &4
-        ));
-
-        assert!(Block::hash_matches_difficulty(
-            &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &0
-        ));
-
-        assert!(!Block::hash_matches_difficulty(
-            &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &5
-        ));
     }
 }

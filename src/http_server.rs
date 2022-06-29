@@ -4,7 +4,7 @@ use actix_web::{get, web, App, HttpResponse, HttpServer};
 use crate::block::Block;
 use crate::message::{Message, MessageType};
 use crate::p2p;
-use crate::{BLOCK_CHAIN, PEERS};
+use crate::BLOCK_CHAIN;
 
 #[get("/blocks")]
 async fn blocks() -> actix_web::Result<HttpResponse> {
@@ -14,19 +14,12 @@ async fn blocks() -> actix_web::Result<HttpResponse> {
         .body(serde_json::to_string(&BLOCK_CHAIN.read().unwrap().blocks).unwrap()))
 }
 
-#[get("/peers")]
-async fn peers() -> actix_web::Result<HttpResponse> {
-    Ok(HttpResponse::build(StatusCode::OK).body(PEERS.read().unwrap().join("\n")))
-}
-
 async fn connect_to_peer(peer: String) -> actix_web::Result<HttpResponse> {
     if peer.is_empty() {
         return Ok(HttpResponse::build(StatusCode::BAD_REQUEST).body(""));
     }
 
-    // PEERS.write().unwrap().push(peer.clone());
-
-    let token = p2p::connect_to_peer(peer.parse().unwrap());
+    let token = p2p::Server::connect_to_peer(peer.parse().unwrap());
 
     Message {
         m_type: MessageType::QueryLatest,
@@ -59,7 +52,6 @@ pub async fn init_http_server(http_port: String) -> std::io::Result<()> {
             .service(blocks)
             .service(web::resource("/addPeer").route(web::post().to(connect_to_peer)))
             .service(web::resource("/mineBlock").route(web::post().to(mine_block)))
-            .service(peers)
     })
     .bind(format!("127.0.0.1:{}", http_port))?
     .run()

@@ -9,21 +9,23 @@ use crate::block::Block;
 use chain::BlockChain;
 use http_server::init_http_server;
 use message::{Message, MessageType};
-use p2p::{connect_to_peer, init_p2p_server};
+use p2p::Server;
 
+// TODO: use traits for p2p_handler, validator and difficulter
 mod block;
 mod chain;
+mod difficulter;
 mod http_server;
 mod message;
 mod p2p;
+mod p2p_handler;
+mod validator;
 
 static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
     RwLock::new(BlockChain {
         blocks: vec![BlockChain::get_genesis()],
     })
 });
-
-static PEERS: Lazy<RwLock<Vec<String>>> = Lazy::new(|| RwLock::new(vec![]));
 
 // in seconds
 const BLOCK_GENERATION_INTERVAL: u32 = 10;
@@ -55,9 +57,7 @@ fn main() {
             break;
         }
 
-        PEERS.write().unwrap().push(peer.to_owned());
-
-        let token = connect_to_peer(peer.parse().unwrap());
+        let token = Server::connect_to_peer(peer.parse().unwrap());
 
         Message {
             m_type: MessageType::QueryLatest,
@@ -75,6 +75,9 @@ fn main() {
     let http_handler = thread::spawn(move || init_http_server(http_port).unwrap());
 
     // TODO: signal handling and graceful shutdown
-    init_p2p_server(config.p2p_port);
+    Server {
+        addr: format!("0.0.0.0:{}", config.p2p_port).parse().unwrap(),
+    }
+    .init();
     http_handler.join().unwrap();
 }

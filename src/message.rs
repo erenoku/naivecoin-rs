@@ -3,10 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::thread;
 
-use crate::{
-    p2p::{self, send_to_peer},
-    Block, BLOCK_CHAIN,
-};
+use crate::{p2p::Server, Block, BLOCK_CHAIN};
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum MessageType {
@@ -25,7 +22,7 @@ impl Message {
     /// send self to the peer and handle the response
     /// if doesn't handle response use send_response(&self, stream: &mut TcpStream)
     pub fn send_to_peer(&self, peer: &Token) {
-        send_to_peer(peer, self.serialize().as_bytes());
+        Server::send_to_peer(peer, self.serialize().as_bytes());
     }
 
     pub fn send_request(&self, stream: &mut TcpStream) {
@@ -81,7 +78,7 @@ impl Message {
     }
 
     pub fn broadcast(self) {
-        p2p::broadcast(self.serialize().as_bytes());
+        Server::broadcast(self.serialize().as_bytes());
     }
 }
 

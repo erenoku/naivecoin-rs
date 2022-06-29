@@ -1,7 +1,5 @@
-use log::info;
-
 use crate::block::Block;
-use crate::{BLOCK_GENERATION_INTERVAL, DIFFICULTY_ADJUSTMENT_INTERVAL};
+use crate::difficulter::Difficulter;
 
 pub struct BlockChain {
     pub blocks: Vec<Block>,
@@ -21,7 +19,8 @@ impl BlockChain {
         let new_chain = BlockChain { blocks: new_blocks };
 
         if new_chain.is_valid()
-            && new_chain.get_accumulated_difficulty() > self.get_accumulated_difficulty()
+            && Difficulter::get_accumulated_difficulty(&new_chain)
+                > Difficulter::get_accumulated_difficulty(self)
         {
             self.blocks = new_chain.blocks;
         }
@@ -31,41 +30,6 @@ impl BlockChain {
     /// return the latest block
     pub fn get_latest(&self) -> Block {
         self.blocks.last().unwrap().clone()
-    }
-
-    pub fn get_difficulty(&self) -> u32 {
-        let latest = self.get_latest();
-
-        if latest.index % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && latest.index != 0 {
-            return self.get_adjusted_difficulty(&latest);
-        }
-        latest.difficulty
-    }
-
-    fn get_adjusted_difficulty(&self, latest_block: &Block) -> u32 {
-        let prev_adjustment_block: &Block =
-            &self.blocks[self.blocks.len() - DIFFICULTY_ADJUSTMENT_INTERVAL as usize];
-        let time_expected = (BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL) as u64;
-        let time_taken = latest_block.timestamp - prev_adjustment_block.timestamp;
-        info!(
-            "time taken: {} time expected: {}",
-            time_taken, time_expected
-        );
-
-        if time_taken < time_expected / 2 {
-            prev_adjustment_block.difficulty + 1
-        } else if time_taken > time_expected * 2 {
-            prev_adjustment_block.difficulty - 1
-        } else {
-            prev_adjustment_block.difficulty
-        }
-    }
-
-    fn get_accumulated_difficulty(&self) -> u64 {
-        self.blocks
-            .iter()
-            .map(|block| 2u64.pow(block.difficulty))
-            .sum()
     }
 
     /// return the genesis block
