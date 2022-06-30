@@ -24,16 +24,12 @@ impl Validator {
     }
 
     pub fn hash_matches_difficulty(hash: &str, difficulty: &u32) -> bool {
-        let bin = Self::hex_to_bin(hash);
+        let end = difficulty / 4 + 1;
+        // end = 2
 
-        bin.starts_with("0".repeat(*difficulty as usize).as_str())
-    }
-
-    fn hex_to_bin(hex: &str) -> String {
-        let mut bin = String::new();
-
-        for char in hex.chars() {
-            let a = match char {
+        for i in 0..end {
+            // i = {0, 1}
+            let a = match hash.as_bytes()[i as usize] as char {
                 '0' => "0000",
                 '1' => "0001",
                 '2' => "0010",
@@ -58,10 +54,22 @@ impl Validator {
                 'F' => "1111",
                 e => panic!("sha256 hash contains invalid character: {}", e),
             };
-            bin.push_str(a);
+
+            // assert_eq(difficulty, 10)
+            // difficulty % 4 = 2
+            // difficulty / 4
+
+            // it is the last iteration not all bytes have to be 0
+            if i == end - 1 {
+                if !a.starts_with("0".repeat(*difficulty as usize % 4).as_str()) {
+                    return false;
+                }
+            } else if a != "0000" {
+                return false;
+            }
         }
 
-        bin
+        true
     }
 }
 

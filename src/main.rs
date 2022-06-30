@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use log::info;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
