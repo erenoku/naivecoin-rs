@@ -1,22 +1,17 @@
-use actix_web::http::StatusCode;
-use actix_web::{get, web, App, HttpResponse, HttpServer};
+use std::io::Read;
 
 use crate::block::Block;
 use crate::message::{Message, MessageType};
 use crate::p2p;
 use crate::BLOCK_CHAIN;
 
-#[get("/blocks")]
-async fn blocks() -> actix_web::Result<HttpResponse> {
-    // response
-    Ok(HttpResponse::build(StatusCode::OK)
-        .content_type("application/json")
-        .body(serde_json::to_string(&BLOCK_CHAIN.read().unwrap().blocks).unwrap()))
+fn blocks() -> rouille::Response {
+    rouille::Response::json(&BLOCK_CHAIN.read().unwrap().blocks)
 }
 
-async fn connect_to_peer(peer: String) -> actix_web::Result<HttpResponse> {
+fn connect_to_peer(peer: String) -> rouille::Response {
     if peer.is_empty() {
-        return Ok(HttpResponse::build(StatusCode::BAD_REQUEST).body(""));
+        return rouille::Response::text("").with_status_code(500);
     }
 
     let token = p2p::Server::connect_to_peer(peer.parse().unwrap());
@@ -27,10 +22,10 @@ async fn connect_to_peer(peer: String) -> actix_web::Result<HttpResponse> {
     }
     .send_to_peer(&token);
 
-    Ok(HttpResponse::build(StatusCode::OK).body(""))
+    rouille::Response::text("")
 }
 
-async fn mine_block(body: String) -> actix_web::Result<HttpResponse> {
+fn mine_block(body: String) -> rouille::Response {
     let next_block = Block::generate_next(body, &BLOCK_CHAIN.read().unwrap());
 
     BLOCK_CHAIN.write().unwrap().add(next_block);
@@ -42,18 +37,33 @@ async fn mine_block(body: String) -> actix_web::Result<HttpResponse> {
 
     msg.broadcast();
 
-    Ok(HttpResponse::build(StatusCode::OK).body(""))
+    rouille::Response::text("")
 }
 
-#[actix_web::main]
-pub async fn init_http_server(http_port: String) -> std::io::Result<()> {
-    HttpServer::new(|| {
-        App::new()
-            .service(blocks)
-            .service(web::resource("/addPeer").route(web::post().to(connect_to_peer)))
-            .service(web::resource("/mineBlock").route(web::post().to(mine_block)))
-    })
-    .bind(format!("127.0.0.1:{}", http_port))?
-    .run()
-    .await
+pub fn init_http_server(http_port: String) {
+    rouille::start_server(format!("127.0.0.1:{}", http_port), move |request| {
+        rouille::router!(request,
+
+         (GET) (/blocks) => {
+            blocks()
+         },
+
+         (POST) (/addPeer) => {
+            let mut body =  String::new();
+            request.data().unwrap().read_to_string(&mut body).unwrap();
+
+            connect_to_peer(body)
+         },
+
+         (POST) (/mineBlock) => {
+            let mut body= String::new();
+            request.data().unwrap().read_to_string(&mut body).unwrap();
+
+            mine_block(body)
+         },
+
+         _ => rouille::Response::empty_404()
+
+        )
+    });
 }

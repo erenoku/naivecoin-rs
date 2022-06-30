@@ -74,7 +74,7 @@ fn main() {
     );
 
     let http_port = config.http_port.clone(); // will go inside move closure
-    let http_handler = thread::spawn(move || init_http_server(http_port).unwrap());
+    let http_handler = thread::spawn(move || init_http_server(http_port));
 
     // TODO: signal handling and graceful shutdown
     Server {
