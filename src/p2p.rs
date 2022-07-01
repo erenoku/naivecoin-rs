@@ -1,7 +1,7 @@
 use log::info;
 use mio::event::Event;
 use mio::net::{TcpListener, TcpStream};
-use mio::{Events, Interest, Poll, Token};
+use mio::{Events, Interest, Poll, Registry, Token};
 use once_cell::sync::Lazy;
 use std::borrow::BorrowMut;
 use std::collections::HashMap;
@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::{thread, thread::JoinHandle};
 
+use crate::message::{Message, MessageType};
 use crate::p2p_handler::P2PHandler;
 
 const SERVER: Token = Token(0);
@@ -89,7 +90,12 @@ impl Server {
                             let mut c = CONNECTIONS.write().unwrap();
                             // Maybe received an event for a TCP connection.
                             let done = if let Some(connection) = c.get_mut(&token) {
-                                Self::handle_connection_event(connection, event).unwrap()
+                                Self::handle_connection_event(
+                                    POLL.write().unwrap().registry(),
+                                    connection,
+                                    event,
+                                )
+                                .unwrap()
                             } else {
                                 // Sporadic events happen, we can safely ignore them.
                                 false
@@ -129,11 +135,18 @@ impl Server {
         token
     }
 
-    pub fn send_to_peer(t: &Token, buf: &[u8]) {
-        let mut c = CONNECTIONS.write().unwrap();
-        let stream = c.get_mut(t).unwrap();
-
-        stream.write_all(buf).unwrap();
+    pub fn send_to_peer(
+        t: &Token,
+        buf: &[u8],
+        connection: Option<&mut TcpStream>,
+    ) -> std::io::Result<usize> {
+        if let Some(stream) = connection {
+            stream.write(buf)
+        } else {
+            let mut c = CONNECTIONS.write().unwrap();
+            let stream = c.get_mut(t).unwrap();
+            stream.write(buf)
+        }
     }
 
     pub fn broadcast(buf: &[u8]) {
@@ -145,7 +158,43 @@ impl Server {
     }
 
     /// Returns `true` if the connection is done.
-    fn handle_connection_event(connection: &mut TcpStream, event: &Event) -> io::Result<bool> {
+    fn handle_connection_event(
+        registry: &Registry,
+        connection: &mut TcpStream,
+        event: &Event,
+    ) -> io::Result<bool> {
+        let data = Message {
+            m_type: MessageType::QueryLatest,
+            content: String::new(),
+        }
+        .serialize();
+
+        let data = data.as_bytes();
+
+        if event.is_writable() {
+            // We can (maybe) write to the connection.
+            match Self::send_to_peer(&event.token(), data, Some(connection)) {
+                // We want to write the entire `DATA` buffer in a single go. If we
+                // write less we'll return a short write error (same as
+                // `io::Write::write_all` does).
+                Ok(n) if n < data.len() => return Err(io::ErrorKind::WriteZero.into()),
+                Ok(_) => {
+                    // After we've written something we'll reregister the connection
+                    // to only respond to readable events.
+                    registry.reregister(connection, event.token(), Interest::READABLE)?
+                }
+                // Would block "errors" are the OS's way of saying that the
+                // connection is not actually ready to perform this I/O operation.
+                Err(ref err) if Self::would_block(err) => {}
+                // Got interrupted (how rude!), we'll try again.
+                Err(ref err) if Self::interrupted(err) => {
+                    return Self::handle_connection_event(registry, connection, event)
+                }
+                // Other errors we'll consider fatal.
+                Err(err) => return Err(err),
+            }
+        }
+
         if event.is_readable() {
             let mut connection_closed = false;
             let mut received_data = vec![0; 4096];

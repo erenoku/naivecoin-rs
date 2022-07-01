@@ -22,7 +22,7 @@ impl Message {
     /// send self to the peer and handle the response
     /// if doesn't handle response use send_response(&self, stream: &mut TcpStream)
     pub fn send_to_peer(&self, peer: &Token) {
-        Server::send_to_peer(peer, self.serialize().as_bytes());
+        Server::send_to_peer(peer, self.serialize().as_bytes(), None).unwrap();
     }
 
     pub fn send_request(&self, stream: &mut TcpStream) {
@@ -30,7 +30,7 @@ impl Message {
         stream.write_all(json.as_bytes()).unwrap();
     }
 
-    fn serialize(&self) -> String {
+    pub fn serialize(&self) -> String {
         serde_json::to_string(&self).unwrap()
     }
 

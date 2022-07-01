@@ -10,7 +10,6 @@ use std::thread;
 use crate::block::Block;
 use chain::BlockChain;
 use http_server::init_http_server;
-use message::{Message, MessageType};
 use p2p::Server;
 
 // TODO: use traits for p2p_handler, validator and difficulter
@@ -59,13 +58,7 @@ fn main() {
             break;
         }
 
-        let token = Server::connect_to_peer(peer.parse().unwrap());
-
-        Message {
-            m_type: MessageType::QueryLatest,
-            content: String::new(),
-        }
-        .send_to_peer(&token);
+        Server::connect_to_peer(peer.parse().unwrap());
     }
 
     info!(
