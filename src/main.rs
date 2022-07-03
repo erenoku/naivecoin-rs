@@ -20,6 +20,7 @@ mod http_server;
 mod message;
 mod p2p;
 mod p2p_handler;
+mod transaction;
 mod validator;
 
 static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
