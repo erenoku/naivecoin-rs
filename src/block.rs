@@ -2,14 +2,17 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{chain::BlockChain, difficulter::Difficulter, validator::Validator, BLOCK_CHAIN};
+use crate::{
+    chain::BlockChain, difficulter::Difficulter, transaction::Transaction, validator::Validator,
+    BLOCK_CHAIN,
+};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Block {
     pub index: u32,
     pub previous_hash: String,
     pub timestamp: u64,
-    pub data: String,
+    pub data: Vec<Transaction>,
     pub hash: String,
     pub nonce: u32,
     pub difficulty: u32,
@@ -41,7 +44,7 @@ impl Block {
         index: &u32,
         previous_hash: &str,
         timestamp: &u64,
-        data: &str,
+        data: &Vec<Transaction>,
         difficulty: &u32,
         nonce: &u32,
     ) -> String {
@@ -50,7 +53,9 @@ impl Block {
         hasher.update(index.to_be_bytes());
         hasher.update(previous_hash);
         hasher.update(timestamp.to_be_bytes());
-        hasher.update(data);
+        for t in data.iter() {
+            hasher.update(t.id.as_str())
+        }
         hasher.update(difficulty.to_be_bytes());
         hasher.update(nonce.to_be_bytes());
 
@@ -58,7 +63,7 @@ impl Block {
     }
 
     /// generate the next block with given block_data
-    pub fn generate_next(block_data: String, chain: &BlockChain) -> Block {
+    pub fn generate_next(block_data: Vec<Transaction>, chain: &BlockChain) -> Block {
         let prev_block = chain.get_latest();
         let next_index = prev_block.index + 1;
         let next_timestamp = SystemTime::now()
@@ -80,7 +85,7 @@ impl Block {
         index: u32,
         previous_hash: String,
         timestamp: u64,
-        data: String,
+        data: Vec<Transaction>,
         difficulty: u32,
     ) -> Self {
         let mut nonce = 0;

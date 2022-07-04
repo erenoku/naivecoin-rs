@@ -33,6 +33,8 @@ static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
 const BLOCK_GENERATION_INTERVAL: u32 = 10;
 const DIFFICULTY_ADJUSTMENT_INTERVAL: u32 = 10;
 
+const COINBASE_AMOUNT: u64 = 50;
+
 #[derive(Deserialize, Debug, Serialize, Clone)]
 struct Config {
     http_port: String,

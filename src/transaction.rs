@@ -1,16 +1,17 @@
-use std::{ops::Deref, str::FromStr};
-
 use k256::{
-    ecdsa::{signature::Signer, Signature, SigningKey},
-    SecretKey,
-};
-use k256::{
-    ecdsa::{signature::Verifier, VerifyingKey},
-    EncodedPoint,
+    ecdsa::{
+        signature::{Signer, Verifier},
+        Signature, SigningKey, VerifyingKey,
+    },
+    pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey},
+    EncodedPoint, SecretKey,
 };
 use log::warn;
-use rand_core::OsRng; // requires 'getrandom' feature
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::{ops::Deref, str::FromStr};
+
+use crate::COINBASE_AMOUNT;
 
 #[derive(Clone)]
 pub struct UnspentTxOut {
@@ -20,18 +21,20 @@ pub struct UnspentTxOut {
     pub amount: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TxIn {
     pub tx_out_id: String,
     pub tx_out_index: u64,
     pub signature: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TxOut {
     pub address: String,
     pub amount: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Transaction {
     pub id: String,
 
@@ -46,14 +49,14 @@ impl Transaction {
             .iter()
             .map(|tx_in| tx_in.tx_out_id.clone() + &tx_in.tx_out_index.to_string())
             .reduce(|a, b| a + &b)
-            .unwrap_or(String::new());
+            .unwrap_or_default();
 
         let tx_out_content = self
             .tx_outs
             .iter()
             .map(|tx_out| tx_out.address.clone() + &tx_out.amount.to_string())
             .reduce(|a, b| a + &b)
-            .unwrap_or(String::new());
+            .unwrap_or_default();
 
         let mut hasher = Sha256::new();
 
@@ -63,7 +66,7 @@ impl Transaction {
         format!("{:x}", hasher.finalize())
     }
 
-    pub fn validate(&self, new_unspent_tx_outs: Vec<UnspentTxOut>) -> bool {
+    pub fn validate(&self, new_unspent_tx_outs: &Vec<UnspentTxOut>) -> bool {
         if self.get_transaction_id() != self.id {
             warn!("invalid tx id: {}", self.id);
             return false;
@@ -102,32 +105,176 @@ impl Transaction {
         true
     }
 
-    //     const validateBlockTransactions = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[], blockIndex: number): boolean => {
-    //     const coinbaseTx = aTransactions[0];
-    //     if (!validateCoinbaseTx(coinbaseTx, blockIndex)) {
-    //         console.log('invalid coinbase transaction: ' + JSON.stringify(coinbaseTx));
-    //         return false;
-    //     }
+    pub fn validate_block_transactions(
+        new_transactions: &Vec<Self>,
+        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+        block_index: u64,
+    ) -> bool {
+        let coinbase_tx = &new_transactions[0];
+        if !Self::validate_coinbase_tx(coinbase_tx, block_index) {
+            warn!("invalid coinbase transaction: {:?}", coinbase_tx);
+            return false;
+        }
 
-    //     //check for duplicate txIns. Each txIn can be included only once
-    //     const txIns: TxIn[] = _(aTransactions)
-    //         .map(tx => tx.txIns)
-    //         .flatten()
-    //         .value();
+        let tx_ins: Vec<&TxIn> = new_transactions
+            .iter()
+            .map(|t| &t.tx_ins)
+            .flatten()
+            .collect();
 
-    //     if (hasDuplicates(txIns)) {
-    //         return false;
-    //     }
+        if TxIn::has_duplicates(tx_ins) {
+            return false;
+        }
 
-    //     // all but coinbase transactions
-    //     const normalTransactions: Transaction[] = aTransactions.slice(1);
-    //     return normalTransactions.map((tx) => validateTransaction(tx, aUnspentTxOuts))
-    //         .reduce((a, b) => (a && b), true);
+        // transactions except coinbase transaction
+        let normal_transactions = new_transactions.clone().split_off(1);
+        normal_transactions
+            .iter()
+            .map(|tx_in| tx_in.validate(new_unspent_tx_outs))
+            .all(|x| x)
+    }
 
+    fn validate_coinbase_tx(transaction: &Self, block_index: u64) -> bool {
+        if transaction.get_transaction_id() != transaction.id {
+            warn!("invalid coinbase tx id: {}", transaction.id);
+            return false;
+        } else if transaction.tx_ins.len() != 1 {
+            warn!("the txIn signature in coinbase tx must be the block height");
+            return false;
+        } else if transaction.tx_ins[0].tx_out_index != block_index {
+            warn!("the txIn signature in coinbase tx must be the block height");
+            return false;
+        } else if transaction.tx_outs.len() != 1 {
+            warn!("invalid number of txOuts in coinbase transaction");
+            return false;
+        } else if transaction.tx_outs[0].amount != COINBASE_AMOUNT {
+            warn!("invalid coinbase amount in coinbase transaction");
+            return false;
+        }
+
+        true
+    }
+
+    pub fn get_coinbase_tx(address: String, block_index: u64) -> Self {
+        let tx_in = TxIn {
+            tx_out_id: String::new(),
+            tx_out_index: block_index,
+            signature: String::new(),
+        };
+
+        let mut tx = Self {
+            id: String::new(),
+            tx_ins: vec![tx_in],
+            tx_outs: vec![TxOut {
+                address,
+                amount: COINBASE_AMOUNT,
+            }],
+        };
+
+        tx.id = tx.get_transaction_id();
+
+        tx
+    }
+
+    pub fn update_unspent_tx_out(
+        new_transactions: Vec<Self>,
+        a_unspent_tx_outs: Vec<UnspentTxOut>,
+    ) -> Vec<UnspentTxOut> {
+        let new_unspent_tx_outs: Vec<UnspentTxOut> = new_transactions
+            .iter()
+            .map(|t| {
+                t.tx_outs
+                    .iter()
+                    .enumerate()
+                    .map(|(index, tx_out)| UnspentTxOut {
+                        tx_out_id: t.id.clone(),
+                        tx_out_index: index as u64,
+                        address: tx_out.address.clone(),
+                        amount: tx_out.amount,
+                    })
+                    .collect()
+            })
+            .reduce(|a: Vec<UnspentTxOut>, b| vec![a, b].concat())
+            .unwrap_or_default();
+
+        let consumed_tx_outs: Vec<UnspentTxOut> = new_transactions
+            .iter()
+            .map(|t| t.clone().tx_ins)
+            .reduce(|a, b| vec![a, b].concat())
+            .unwrap_or_default()
+            .iter()
+            .map(|tx_in| UnspentTxOut {
+                tx_out_id: tx_in.tx_out_id.clone(),
+                tx_out_index: tx_in.tx_out_index.clone(),
+                address: String::new(),
+                amount: 0,
+            })
+            .collect();
+
+        // resulting unspent tx outs
+        a_unspent_tx_outs
+            .clone()
+            .into_iter()
+            .filter(|u_tx_o| {
+                match find_unspent_tx_out(
+                    &u_tx_o.tx_out_id,
+                    &u_tx_o.tx_out_index,
+                    &consumed_tx_outs,
+                ) {
+                    Some(_) => true,
+                    None => false,
+                }
+            })
+            .chain(new_unspent_tx_outs.clone().into_iter())
+            .collect()
+    }
+
+    //     const updateUnspentTxOuts = (aTransactions: Transaction[], aUnspentTxOuts: UnspentTxOut[]): UnspentTxOut[] => {
+    //     const newUnspentTxOuts: UnspentTxOut[] = aTransactions
+    //         .map((t) => {
+    //             return t.txOuts.map((txOut, index) => new UnspentTxOut(t.id, index, txOut.address, txOut.amount));
+    //         })
+    //         .reduce((a, b) => a.concat(b), []);
+
+    //     const consumedTxOuts: UnspentTxOut[] = aTransactions
+    //         .map((t) => t.txIns)
+    //         .reduce((a, b) => a.concat(b), [])
+    //         .map((txIn) => new UnspentTxOut(txIn.txOutId, txIn.txOutIndex, '', 0));
+
+    //     const resultingUnspentTxOuts = aUnspentTxOuts
+    //         .filter(((uTxO) => !findUnspentTxOut(uTxO.txOutId, uTxO.txOutIndex, consumedTxOuts)))
+    //         .concat(newUnspentTxOuts);
+
+    //     return resultingUnspentTxOuts;
     // };
+
+    pub fn process_transaction(
+        new_transactions: Vec<Self>,
+        new_unspent_tx_outs: Vec<UnspentTxOut>,
+        block_index: u64,
+    ) -> Option<Vec<UnspentTxOut>> {
+        if !Self::validate_block_transactions(&new_transactions, &new_unspent_tx_outs, block_index)
+        {
+            warn!("invalid block transaction");
+            return None;
+        }
+
+        Some(Self::update_unspent_tx_out(
+            new_transactions,
+            new_unspent_tx_outs,
+        ))
+    }
 }
 
 impl TxIn {
+    fn has_duplicates(tx_ins: Vec<&Self>) -> bool {
+        let v: Vec<String> = tx_ins
+            .iter()
+            .map(|tx_in| tx_in.tx_out_id.clone() + &tx_in.tx_out_index.to_string())
+            .collect();
+        (1..v.len()).any(|i| v[i..].contains(&v[i - 1]))
+    }
+
     pub fn validate(
         &self,
         transaction: &Transaction,
@@ -147,7 +294,7 @@ impl TxIn {
                     }
                 }
 
-                return false;
+                false
             }
             None => {
                 warn!("referenced txOut not found: {:?}", self);
@@ -157,25 +304,66 @@ impl TxIn {
     }
 
     pub fn get_amount(&self, new_unspent_tx_outs: &Vec<UnspentTxOut>) -> u64 {
-        find_unspent_tx_out(&self.tx_out_id, self.tx_out_index, new_unspent_tx_outs).amount
+        find_unspent_tx_out(&self.tx_out_id, &self.tx_out_index, new_unspent_tx_outs)
+            .unwrap()
+            .amount
     }
+
+    // TODO: fix spagetthi
+    pub fn sign(
+        tx: Transaction,
+        tx_in_index: u64,
+        signing_key: String,
+        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+    ) -> String {
+        let tx_in = &tx.tx_ins[tx_in_index as usize];
+
+        let data_to_sign = tx.id;
+        let referenced_u_tx_out =
+            match find_unspent_tx_out(&tx_in.tx_out_id, &tx_in.tx_out_index, new_unspent_tx_outs) {
+                Some(tx_out) => tx_out,
+                None => {
+                    panic!("could not find referenced txOut");
+                }
+            };
+
+        let referenced_address = referenced_u_tx_out.address;
+
+        let verifying_key = get_verifying_key(&signing_key);
+        if encode_verifying_key(&verifying_key) != referenced_address {
+            panic!("trying to sign an input with private key that does not match the adress that is referecned in tx_in");
+        }
+        let signing_key = SigningKey::from_pkcs8_der(signing_key.as_bytes()).unwrap();
+        let a: Signature = signing_key.sign(data_to_sign.as_bytes());
+        hex::encode(a.to_der())
+    }
+}
+
+fn get_verifying_key(signing_key: &String) -> VerifyingKey {
+    VerifyingKey::from_encoded_point(&EncodedPoint::from_str(signing_key).unwrap()).unwrap()
+}
+
+fn encode_verifying_key(key: &VerifyingKey) -> String {
+    EncodedPoint::from_bytes(key.to_bytes())
+        .unwrap()
+        .to_string()
 }
 
 fn find_unspent_tx_out(
     transaction_id: &String,
-    index: u64,
+    index: &u64,
     new_unspent_tx_outs: &Vec<UnspentTxOut>,
-) -> UnspentTxOut {
+) -> Option<UnspentTxOut> {
     new_unspent_tx_outs
-        .iter()
-        .find(|new_tx_o| &new_tx_o.tx_out_id == transaction_id && new_tx_o.tx_out_index == index)
-        .unwrap()
-        .to_owned()
+        .clone()
+        .into_iter()
+        .find(|new_tx_o| &new_tx_o.tx_out_id == transaction_id && &new_tx_o.tx_out_index == index)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand_core::OsRng; // requires 'getrandom' feature
 
     #[test]
     fn test_tx_in_validate() {

@@ -38,7 +38,7 @@ impl BlockChain {
             index: 0,
             previous_hash: String::from("0"),
             timestamp: 1465154705,
-            data: String::from("my genesis block!!"),
+            data: vec![],
             hash: String::new(),
             difficulty: 0,
             nonce: 0,
@@ -82,7 +82,7 @@ mod tests {
                     index: 1,
                     previous_hash: BlockChain::get_genesis().hash,
                     timestamp: BlockChain::get_genesis().timestamp + 1,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
                     ),
@@ -98,7 +98,7 @@ mod tests {
                 index: 1,
                 previous_hash: BlockChain::get_genesis().hash,
                 timestamp: BlockChain::get_genesis().timestamp + 1,
-                data: String::from("ekmfwlkm"),
+                data: vec![],
                 hash: String::from(
                     "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
                 ),
@@ -111,7 +111,7 @@ mod tests {
                     "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
                 ),
                 timestamp: BlockChain::get_genesis().timestamp + 2,
-                data: String::from("ekmfwlkm"),
+                data: vec![],
                 hash: String::from(
                     "13543d261672ae2f0cb9f54ded0b5eca74f9d3bf85a80fae21d40e4362ffbb40",
                 ),
@@ -135,7 +135,7 @@ mod tests {
             index: 1,
             previous_hash: BlockChain::get_genesis().hash,
             timestamp: BlockChain::get_genesis().timestamp + 1,
-            data: String::from("ekmfwlkm"),
+            data: vec![],
             hash: String::from("5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e"),
             difficulty: 0,
             nonce: 0,
@@ -159,7 +159,7 @@ mod tests {
                     index: 1,
                     previous_hash: BlockChain::get_genesis().hash,
                     timestamp: BlockChain::get_genesis().timestamp + 1,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
                     ),
@@ -180,7 +180,7 @@ mod tests {
                         "e9e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
                     ),
                     timestamp: BlockChain::get_genesis().timestamp + 1,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
                     ),
@@ -199,7 +199,7 @@ mod tests {
                     index: 1,
                     previous_hash: BlockChain::get_genesis().hash,
                     timestamp: BlockChain::get_genesis().timestamp - 1,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
                     ),
@@ -218,7 +218,7 @@ mod tests {
                     index: 1,
                     previous_hash: BlockChain::get_genesis().hash,
                     timestamp: BlockChain::get_genesis().timestamp,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
                     ),
@@ -237,7 +237,7 @@ mod tests {
                     index: 1,
                     previous_hash: BlockChain::get_genesis().hash,
                     timestamp: BlockChain::get_genesis().timestamp + 1,
-                    data: String::from("ekmfwlkm"),
+                    data: vec![],
                     hash: String::from(
                         "d7e7efcbda3fb07db3aa416ceaefa831f3a5e19e77f5231d16de76c32abc39b2",
                     ),
