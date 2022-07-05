@@ -15,6 +15,7 @@ use p2p::Server;
 // TODO: use traits for p2p_handler, validator and difficulter
 mod block;
 mod chain;
+mod crypto;
 mod difficulter;
 mod http_server;
 mod message;
@@ -22,6 +23,7 @@ mod p2p;
 mod p2p_handler;
 mod transaction;
 mod validator;
+mod wallet;
 
 static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
     RwLock::new(BlockChain {

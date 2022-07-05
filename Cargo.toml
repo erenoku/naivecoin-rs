@@ -15,8 +15,8 @@ log = "0.4.17"
 mio = { version="0.8.4", features = ["net", "os-poll"] }
 env_logger = "0.9.0"
 rouille = "3.5.0" # todo: even simple http server
-k256 = "0.11.2"
 rand_core = "0.6.3"
+openssl = "0.10"
 hex = "0.4.3"
 
 # [profile.release]
