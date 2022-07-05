@@ -34,6 +34,16 @@ pub struct Transaction {
     pub tx_outs: Vec<TxOut>,
 }
 
+impl UnspentTxOut {
+    pub fn to_unsigned_tx_in(&self) -> TxIn {
+        TxIn {
+            tx_out_id: self.tx_out_id.clone(),
+            tx_out_index: self.tx_out_index,
+            signature: String::new(),
+        }
+    }
+}
+
 impl Transaction {
     pub fn get_transaction_id(&self) -> String {
         let tx_in_content = self
@@ -285,7 +295,7 @@ impl TxIn {
     pub fn sign(
         tx: Transaction,
         tx_in_index: u64,
-        private_key: PrivateKey,
+        private_key: &PrivateKey,
         new_unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> String {
         let tx_in = &tx.tx_ins[tx_in_index as usize];

@@ -8,6 +8,7 @@ use std::sync::RwLock;
 use std::thread;
 
 use crate::block::Block;
+use crate::wallet::Wallet;
 use chain::BlockChain;
 use http_server::init_http_server;
 use p2p::Server;
@@ -65,6 +66,11 @@ fn main() {
 
         Server::connect_to_peer(peer.parse().unwrap());
     }
+
+    let wallet = Wallet {
+        signing_key_location: String::from("./node/wallet/private_key.pem"),
+    };
+    wallet.generate_private_key();
 
     info!(
         "server running on p2p port: {} and http port: {}",

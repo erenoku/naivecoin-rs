@@ -1,3 +1,4 @@
+use log::info;
 use openssl::{
     bn, ec,
     ec::{EcGroup, EcKey, EcPoint, EcPointRef},
@@ -6,13 +7,17 @@ use openssl::{
     nid::Nid,
     pkey::{Private, Public},
 };
+use std::{
+    fs::{self, File},
+    io::{self, Write},
+    path::Path,
+};
 
 const CURVE: Nid = Nid::X9_62_PRIME256V1;
 
 // higher level abstraction for the parts of openssl that will be used in this project
 pub struct KeyPair {
     pub private_key: PrivateKey,
-    group: EcGroup,
 }
 
 impl KeyPair {
@@ -22,7 +27,6 @@ impl KeyPair {
 
         Self {
             private_key: PrivateKey { key },
-            group: Self::get_group(),
         }
     }
 
@@ -71,7 +75,7 @@ impl Signature {
         self.signature.verify(data, &key)
     }
 
-    pub fn from_sign(data: &[u8], private_key: PrivateKey) -> Result<Self, ErrorStack> {
+    pub fn from_sign(data: &[u8], private_key: &PrivateKey) -> Result<Self, ErrorStack> {
         let sig = EcdsaSig::sign(data, &private_key.key)?;
 
         Ok(Self { signature: sig })
@@ -92,5 +96,34 @@ impl PrivateKey {
             .public_key()
             .to_owned(&KeyPair::get_group())
             .unwrap()
+    }
+
+    pub fn to_pem(&self) -> Result<Vec<u8>, ErrorStack> {
+        self.key.private_key_to_pem()
+    }
+
+    pub fn from_pem(pem: &[u8]) -> Self {
+        Self {
+            key: EcKey::private_key_from_pem(pem).unwrap(),
+        }
+    }
+
+    pub fn read_file_pem(path: &Path) -> io::Result<Self> {
+        let pem = fs::read_to_string(path)?;
+        Ok(Self::from_pem(pem.as_bytes()))
+    }
+
+    pub fn write_file_pem(&self, path: &Path) -> io::Result<()> {
+        let pem = self.to_pem().unwrap();
+
+        let prefix = path.parent().unwrap();
+        std::fs::create_dir_all(prefix).unwrap();
+        let mut f = File::create(path)?;
+        info!(
+            "writing private key to path: {}",
+            path.as_os_str().to_str().unwrap()
+        );
+
+        return f.write_all(&pem);
     }
 }
