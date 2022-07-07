@@ -79,7 +79,7 @@ impl Wallet {
     pub fn create_transaction(
         receiver_addr: String,
         amount: u64,
-        private_key: PrivateKey,
+        private_key: &PrivateKey,
         unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> Transaction {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());
@@ -128,7 +128,7 @@ mod test {
     use tempfile;
 
     #[test]
-    fn test_get_key() {
+    fn test_gen_key() {
         let location = tempfile::NamedTempFile::new().unwrap();
         let wallet = Wallet {
             signing_key_location: location.path().to_str().unwrap().to_owned(),

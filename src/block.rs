@@ -1,11 +1,22 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::RwLock,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use crate::{
-    chain::BlockChain, difficulter::Difficulter, transaction::Transaction, validator::Validator,
-    BLOCK_CHAIN,
+    chain::BlockChain,
+    crypto::KeyPair,
+    difficulter::Difficulter,
+    transaction::{Transaction, UnspentTxOut},
+    validator::Validator,
+    wallet::Wallet,
+    BLOCK_CHAIN, WALLET,
 };
+
+pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Block {
@@ -62,8 +73,19 @@ impl Block {
         format!("{:x}", hasher.finalize())
     }
 
+    pub fn generate_next() -> Self {
+        let chain = BLOCK_CHAIN.read().unwrap();
+        let public_key = &WALLET.read().unwrap().get_public_key();
+
+        let coinbase_tx = Transaction::get_coinbase_tx(
+            KeyPair::public_key_to_hex(public_key),
+            (chain.get_latest().index + 1) as u64,
+        );
+        Self::generate_next_raw(vec![coinbase_tx], &chain)
+    }
+
     /// generate the next block with given block_data
-    pub fn generate_next(block_data: Vec<Transaction>, chain: &BlockChain) -> Block {
+    pub fn generate_next_raw(block_data: Vec<Transaction>, chain: &BlockChain) -> Self {
         let prev_block = chain.get_latest();
         let next_index = prev_block.index + 1;
         let next_timestamp = SystemTime::now()
@@ -79,6 +101,24 @@ impl Block {
             block_data,
             difficulty,
         )
+    }
+
+    pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Self {
+        let chain = BLOCK_CHAIN.read().unwrap();
+        let public_key = &WALLET.read().unwrap().get_public_key();
+        let private_key = &WALLET.read().unwrap().get_private_key();
+
+        let coinbase_tx = Transaction::get_coinbase_tx(
+            KeyPair::public_key_to_hex(public_key),
+            (chain.get_latest().index + 1) as u64,
+        );
+        let tx = Wallet::create_transaction(
+            receiver_addr,
+            amount,
+            private_key,
+            &UNSPENT_TX_OUTS.read().unwrap(),
+        );
+        Self::generate_next_raw(vec![coinbase_tx, tx], &chain)
     }
 
     pub fn find_block(

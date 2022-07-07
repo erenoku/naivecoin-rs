@@ -32,6 +32,15 @@ static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
     })
 });
 
+static WALLET: Lazy<RwLock<Wallet>> = Lazy::new(|| {
+    let wallet = Wallet {
+        signing_key_location: String::from("./node/wallet/private_key.pem"),
+    };
+    wallet.generate_private_key();
+
+    RwLock::new(wallet)
+});
+
 // in seconds
 const BLOCK_GENERATION_INTERVAL: u32 = 10;
 const DIFFICULTY_ADJUSTMENT_INTERVAL: u32 = 10;
@@ -66,11 +75,6 @@ fn main() {
 
         Server::connect_to_peer(peer.parse().unwrap());
     }
-
-    let wallet = Wallet {
-        signing_key_location: String::from("./node/wallet/private_key.pem"),
-    };
-    wallet.generate_private_key();
 
     info!(
         "server running on p2p port: {} and http port: {}",

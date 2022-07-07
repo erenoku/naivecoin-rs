@@ -82,6 +82,7 @@ impl Transaction {
 
         if !has_valid_tx_ins {
             warn!("some of the txIns are invalid in tx: {}", self.id);
+            warn!("{:?}", self);
             return false;
         }
 
@@ -110,7 +111,7 @@ impl Transaction {
     pub fn validate_block_transactions(
         new_transactions: &Vec<Self>,
         new_unspent_tx_outs: &Vec<UnspentTxOut>,
-        block_index: u64,
+        block_index: &u64,
     ) -> bool {
         let coinbase_tx = &new_transactions[0];
         if !Self::validate_coinbase_tx(coinbase_tx, block_index) {
@@ -125,6 +126,7 @@ impl Transaction {
             .collect();
 
         if TxIn::has_duplicates(tx_ins) {
+            warn!("txins have duplicates");
             return false;
         }
 
@@ -136,14 +138,14 @@ impl Transaction {
             .all(|x| x)
     }
 
-    fn validate_coinbase_tx(transaction: &Self, block_index: u64) -> bool {
+    fn validate_coinbase_tx(transaction: &Self, block_index: &u64) -> bool {
         if transaction.get_transaction_id() != transaction.id {
             warn!("invalid coinbase tx id: {}", transaction.id);
             return false;
         } else if transaction.tx_ins.len() != 1 {
             warn!("the txIn signature in coinbase tx must be the block height");
             return false;
-        } else if transaction.tx_ins[0].tx_out_index != block_index {
+        } else if transaction.tx_ins[0].tx_out_index != *block_index {
             warn!("the txIn signature in coinbase tx must be the block height");
             return false;
         } else if transaction.tx_outs.len() != 1 {
@@ -179,8 +181,8 @@ impl Transaction {
     }
 
     pub fn update_unspent_tx_out(
-        new_transactions: Vec<Self>,
-        a_unspent_tx_outs: Vec<UnspentTxOut>,
+        new_transactions: &Vec<Self>,
+        a_unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> Vec<UnspentTxOut> {
         let new_unspent_tx_outs: Vec<UnspentTxOut> = new_transactions
             .iter()
@@ -232,9 +234,9 @@ impl Transaction {
     }
 
     pub fn process_transaction(
-        new_transactions: Vec<Self>,
-        new_unspent_tx_outs: Vec<UnspentTxOut>,
-        block_index: u64,
+        new_transactions: &Vec<Self>,
+        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+        block_index: &u64,
     ) -> Option<Vec<UnspentTxOut>> {
         if !Self::validate_block_transactions(&new_transactions, &new_unspent_tx_outs, block_index)
         {
@@ -271,9 +273,23 @@ impl TxIn {
 
                 if let Ok(public_key) = KeyPair::public_key_from_hex(address) {
                     let signature = Signature::from_string(&self.signature).unwrap();
-                    return signature
+                    let r = signature
                         .verify(&transaction.id.as_bytes(), public_key)
                         .unwrap();
+
+                    if !r {
+                        warn!("failed signature verify for {:?}", self);
+                    }
+
+                    return r;
+                }
+                warn!(
+                    "could not parse address to public key address: {}",
+                    referenced_u_tx_out.address
+                );
+
+                if let Err(e) = KeyPair::public_key_from_hex(&referenced_u_tx_out.address) {
+                    warn!("{e}");
                 }
 
                 false

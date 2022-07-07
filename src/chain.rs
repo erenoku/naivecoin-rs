@@ -1,5 +1,6 @@
-use crate::block::Block;
+use crate::block::{Block, UNSPENT_TX_OUTS};
 use crate::difficulter::Difficulter;
+use crate::transaction::{Transaction, UnspentTxOut};
 
 pub struct BlockChain {
     pub blocks: Vec<Block>,
@@ -10,7 +11,15 @@ impl BlockChain {
     pub fn add(&mut self, new: Block) {
         // TODO: return error
         if Block::is_valid_next_block(&new, &self.get_latest()) {
-            self.blocks.push(new)
+            let ret_val: Vec<UnspentTxOut> = Transaction::process_transaction(
+                &new.data,
+                &UNSPENT_TX_OUTS.read().unwrap(),
+                &(new.index as u64),
+            )
+            .unwrap();
+
+            self.blocks.push(new);
+            *UNSPENT_TX_OUTS.write().unwrap() = ret_val;
         }
     }
 

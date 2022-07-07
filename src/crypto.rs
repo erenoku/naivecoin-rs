@@ -32,7 +32,11 @@ impl KeyPair {
 
     pub fn public_key_from_hex(str: &String) -> Result<EcPoint, ErrorStack> {
         let mut ctx = bn::BigNumContext::new().unwrap();
-        EcPoint::from_bytes(&Self::get_group(), str.as_bytes(), &mut ctx)
+        EcPoint::from_bytes(
+            &Self::get_group(),
+            hex::decode(str.as_bytes()).unwrap().as_slice(),
+            &mut ctx,
+        )
     }
 
     pub fn public_key_to_hex(public_key: &EcPoint) -> String {
@@ -125,5 +129,18 @@ impl PrivateKey {
         );
 
         return f.write_all(&pem);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_public_key_encode_decode() {
+        let pair = KeyPair::generate();
+
+        let encoded_pub_key = KeyPair::public_key_to_hex(&pair.private_key.to_public_key());
+        let decoded_pub_key = KeyPair::public_key_from_hex(&encoded_pub_key).unwrap();
     }
 }
