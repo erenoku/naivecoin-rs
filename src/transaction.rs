@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::crypto::{KeyPair, PrivateKey, Signature};
-use crate::{crypto, COINBASE_AMOUNT};
+use crate::COINBASE_AMOUNT;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnspentTxOut {
     pub tx_out_id: String,
     pub tx_out_index: u64,
@@ -215,7 +215,6 @@ impl Transaction {
             })
             .collect();
 
-        // resulting unspent tx outs
         a_unspent_tx_outs
             .clone()
             .into_iter()
@@ -225,8 +224,8 @@ impl Transaction {
                     &u_tx_o.tx_out_index,
                     &consumed_tx_outs,
                 ) {
-                    Some(_) => true,
-                    None => false,
+                    Some(_) => false,
+                    None => true,
                 }
             })
             .chain(new_unspent_tx_outs.clone().into_iter())
