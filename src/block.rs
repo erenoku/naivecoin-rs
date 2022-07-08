@@ -75,7 +75,7 @@ impl Block {
 
     pub fn generate_next() -> Self {
         let chain = BLOCK_CHAIN.read().unwrap();
-        let public_key = &WALLET.read().unwrap().get_public_key();
+        let public_key = &Wallet::global().read().unwrap().get_public_key();
 
         let coinbase_tx = Transaction::get_coinbase_tx(
             KeyPair::public_key_to_hex(public_key),
@@ -105,8 +105,8 @@ impl Block {
 
     pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Self {
         let chain = BLOCK_CHAIN.read().unwrap();
-        let public_key = &WALLET.read().unwrap().get_public_key();
-        let private_key = &WALLET.read().unwrap().get_private_key();
+        let public_key = &Wallet::global().read().unwrap().get_public_key();
+        let private_key = &Wallet::global().read().unwrap().get_private_key();
 
         let coinbase_tx = Transaction::get_coinbase_tx(
             KeyPair::public_key_to_hex(public_key),

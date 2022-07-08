@@ -69,7 +69,7 @@ fn mine_transaction(body: String) -> rouille::Response {
 }
 
 fn get_balance() -> rouille::Response {
-    let pub_key = WALLET.read().unwrap().get_public_key();
+    let pub_key = Wallet::global().read().unwrap().get_public_key();
     let balance = Wallet::get_balance(
         KeyPair::public_key_to_hex(&pub_key),
         &UNSPENT_TX_OUTS.read().unwrap(),

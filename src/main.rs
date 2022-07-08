@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 use log::info;
-use once_cell::sync::Lazy;
+use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::RwLock;
@@ -32,14 +32,7 @@ static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
     })
 });
 
-static WALLET: Lazy<RwLock<Wallet>> = Lazy::new(|| {
-    let wallet = Wallet {
-        signing_key_location: String::from("./node/wallet/private_key.pem"),
-    };
-    wallet.generate_private_key();
-
-    RwLock::new(wallet)
-});
+static WALLET: OnceCell<RwLock<Wallet>> = OnceCell::new();
 
 // in seconds
 const BLOCK_GENERATION_INTERVAL: u32 = 10;
@@ -52,14 +45,17 @@ struct Config {
     http_port: String,
     p2p_port: String,
     initial_peers: String,
+    key_location: String,
 }
 
 impl Config {
     pub fn from_env() -> Self {
         Config {
-            http_port: env::var("HTTP_PORT").unwrap_or_else(|_| "8000".into()),
-            p2p_port: env::var("P2P_PORT").unwrap_or_else(|_| "5000".into()),
+            http_port: env::var("HTTP_PORT").unwrap_or(String::from("8000")),
+            p2p_port: env::var("P2P_PORT").unwrap_or(String::from("5000")),
             initial_peers: env::var("INITIAL").unwrap_or_default(),
+            key_location: env::var("KEY_LOC")
+                .unwrap_or(String::from("./node/wallet/private_key.pem")),
         }
     }
 }
@@ -67,6 +63,12 @@ impl Config {
 fn main() {
     env_logger::init();
     let config = Config::from_env();
+
+    let wallet = RwLock::new(Wallet {
+        signing_key_location: config.key_location,
+    });
+    wallet.read().unwrap().generate_private_key();
+    WALLET.set(wallet).unwrap();
 
     for peer in config.initial_peers.split(',') {
         if peer.is_empty() {

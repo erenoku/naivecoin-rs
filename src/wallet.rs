@@ -1,14 +1,21 @@
 use openssl::ec::EcPoint;
 use std::path::Path;
+use std::sync::RwLock;
 
 use crate::crypto::{KeyPair, PrivateKey};
 use crate::transaction::{Transaction, TxIn, TxOut, UnspentTxOut};
+use crate::WALLET;
 
+#[derive(Debug)]
 pub struct Wallet {
     pub signing_key_location: String,
 }
 
 impl Wallet {
+    pub fn global() -> &'static RwLock<Self> {
+        WALLET.get().expect("wallet not initialized")
+    }
+
     pub fn get_public_key(&self) -> EcPoint {
         self.get_private_key().to_public_key()
     }
