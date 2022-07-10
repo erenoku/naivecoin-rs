@@ -4,9 +4,9 @@ use std::io::Read;
 use crate::block::{Block, UNSPENT_TX_OUTS};
 use crate::crypto::KeyPair;
 use crate::message::{Message, MessageType};
+use crate::p2p;
 use crate::wallet::Wallet;
 use crate::BLOCK_CHAIN;
-use crate::{p2p, WALLET};
 
 fn blocks() -> rouille::Response {
     rouille::Response::json(&BLOCK_CHAIN.read().unwrap().blocks)

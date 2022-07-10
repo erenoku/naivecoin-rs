@@ -1,3 +1,4 @@
+use log::info;
 use openssl::ec::EcPoint;
 use std::path::Path;
 use std::sync::RwLock;
@@ -25,14 +26,26 @@ impl Wallet {
     }
 
     pub fn generate_private_key(&self) -> PrivateKey {
-        let key = KeyPair::generate();
-
         let path = Path::new(&self.signing_key_location);
+
         if !path.metadata().is_ok() {
+            let key = KeyPair::generate();
             key.private_key.write_file_pem(&path).unwrap();
+
+            info!(
+                "Wallet generated. public key: {}",
+                KeyPair::public_key_to_hex(&key.private_key.to_public_key())
+            );
+
+            return key.private_key;
         }
 
-        key.private_key
+        info!(
+            "Using already existing wallet. public key: {}",
+            KeyPair::public_key_to_hex(&self.get_public_key())
+        );
+
+        self.get_private_key()
     }
 
     pub fn get_balance(address: String, unspent_tx_outs: &Vec<UnspentTxOut>) -> u64 {
