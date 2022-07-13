@@ -47,3 +47,4 @@ curl localhost:8000/balance
 - https://github.com/lhartikk/naivecoin
 - https://lhartikk.github.io/
 - https://docs.rs/openssl/latest/openssl/
+- https://github.com/conradoqg/naivecoin

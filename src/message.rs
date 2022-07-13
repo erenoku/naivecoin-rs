@@ -1,3 +1,4 @@
+use log::info;
 use mio::{net::TcpStream, Token};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -35,7 +36,10 @@ impl Message {
     }
 
     pub fn get_message(msg: &str) -> Message {
-        serde_json::from_str(msg).unwrap()
+        serde_json::from_str(msg).unwrap_or(Message {
+            m_type: MessageType::QueryLatest,
+            content: String::new(),
+        })
     }
 
     pub fn handle_blockchain_response(&self) {

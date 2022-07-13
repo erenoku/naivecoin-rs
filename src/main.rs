@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use log::info;
+use log::{error, info};
 use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -62,12 +62,16 @@ impl Config {
 
 fn main() {
     env_logger::init();
+
     let config = Config::from_env();
 
     let wallet = RwLock::new(Wallet {
         signing_key_location: config.key_location,
     });
-    wallet.read().unwrap().generate_private_key();
+    wallet
+        .read()
+        .expect("could read the wallet")
+        .generate_private_key();
     WALLET.set(wallet).unwrap();
 
     for peer in config.initial_peers.split(',') {
@@ -75,7 +79,11 @@ fn main() {
             break;
         }
 
-        Server::connect_to_peer(peer.parse().unwrap());
+        if let Ok(peer) = peer.parse() {
+            Server::connect_to_peer(peer);
+        } else {
+            error!("could not parse peer: {}", &peer);
+        }
     }
 
     info!(
@@ -88,7 +96,9 @@ fn main() {
 
     // TODO: signal handling and graceful shutdown
     Server {
-        addr: format!("0.0.0.0:{}", config.p2p_port).parse().unwrap(),
+        addr: format!("0.0.0.0:{}", config.p2p_port)
+            .parse()
+            .expect("error parsing server address"),
     }
     .init();
     http_handler.join().unwrap();

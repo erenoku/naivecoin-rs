@@ -1,4 +1,4 @@
-use log::warn;
+use log::{error, warn};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -140,23 +140,23 @@ impl Transaction {
 
     fn validate_coinbase_tx(transaction: &Self, block_index: &u64) -> bool {
         if transaction.get_transaction_id() != transaction.id {
-            warn!("invalid coinbase tx id: {}", transaction.id);
-            return false;
+            warn!("invalid coinbase tx id: {}", transaction.id,);
+            false
         } else if transaction.tx_ins.len() != 1 {
-            warn!("the txIn signature in coinbase tx must be the block height");
-            return false;
+            warn!("one txIn must be specified in the coinbase transaction");
+            false
         } else if transaction.tx_ins[0].tx_out_index != *block_index {
             warn!("the txIn signature in coinbase tx must be the block height");
-            return false;
+            false
         } else if transaction.tx_outs.len() != 1 {
             warn!("invalid number of txOuts in coinbase transaction");
-            return false;
+            false
         } else if transaction.tx_outs[0].amount != COINBASE_AMOUNT {
             warn!("invalid coinbase amount in coinbase transaction");
-            return false;
+            false
+        } else {
+            true
         }
-
-        true
     }
 
     pub fn get_coinbase_tx(address: String, block_index: u64) -> Self {
@@ -271,16 +271,20 @@ impl TxIn {
                 let address = &referenced_u_tx_out.address;
 
                 if let Ok(public_key) = KeyPair::public_key_from_hex(address) {
-                    let signature = Signature::from_string(&self.signature).unwrap();
-                    let r = signature
-                        .verify(&transaction.id.as_bytes(), public_key)
-                        .unwrap();
+                    if let Ok(signature) = Signature::from_string(&self.signature) {
+                        let r = signature
+                            .verify(&transaction.id.as_bytes(), public_key)
+                            .unwrap();
 
-                    if !r {
-                        warn!("failed signature verify for {:?}", self);
+                        if !r {
+                            warn!("failed signature verify for {:?}", self);
+                        }
+
+                        return r;
+                    } else {
+                        error!("error getting signature");
+                        return false;
                     }
-
-                    return r;
                 }
                 warn!(
                     "could not parse address to public key address: {}",

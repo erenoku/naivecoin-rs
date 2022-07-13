@@ -1,6 +1,8 @@
+use log::info;
+
 use crate::block::{Block, UNSPENT_TX_OUTS};
 use crate::difficulter::Difficulter;
-use crate::transaction::{Transaction, UnspentTxOut};
+use crate::transaction::Transaction;
 
 pub struct BlockChain {
     pub blocks: Vec<Block>,
@@ -9,17 +11,16 @@ pub struct BlockChain {
 impl BlockChain {
     /// add a new block if valid
     pub fn add(&mut self, new: Block) {
-        // TODO: return error
-        if Block::is_valid_next_block(&new, &self.get_latest()) {
-            let ret_val: Vec<UnspentTxOut> = Transaction::process_transaction(
-                &new.data,
-                &UNSPENT_TX_OUTS.read().unwrap(),
-                &(new.index as u64),
-            )
-            .unwrap();
+        let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
 
-            self.blocks.push(new);
-            *UNSPENT_TX_OUTS.write().unwrap() = ret_val;
+        // TODO: return error
+        if Block::is_valid_next_block(&new, &self.get_latest(), self) {
+            if let Some(ret_val) =
+                Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
+            {
+                self.blocks.push(new);
+                *unspent_tx_outs = ret_val;
+            }
         }
     }
 
@@ -69,6 +70,7 @@ impl BlockChain {
             if !Block::is_valid_next_block(
                 self.blocks.get(i).unwrap(),
                 self.blocks.get(i - 1).unwrap(),
+                self,
             ) {
                 return false;
             }

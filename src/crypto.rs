@@ -8,6 +8,7 @@ use openssl::{
     pkey::{Private, Public},
 };
 use std::{
+    error::Error,
     fs::{self, File},
     io::{self, Write},
     path::Path,
@@ -52,8 +53,6 @@ impl KeyPair {
         )
     }
 
-    // pub fn public_key_from_private(private_key:  )
-
     pub fn get_group() -> EcGroup {
         EcGroup::from_curve_name(CURVE).unwrap()
     }
@@ -64,13 +63,9 @@ pub struct Signature {
 }
 
 impl Signature {
-    pub fn from_string(str: &String) -> Result<Self, ErrorStack> {
-        let signature = EcdsaSig::from_der(hex::decode(str).unwrap().as_slice())?;
+    pub fn from_string(str: &String) -> Result<Self, Box<dyn Error>> {
+        let signature = EcdsaSig::from_der(hex::decode(str)?.as_slice())?;
         Ok(Self { signature })
-    }
-
-    pub fn to_string(&self) -> Result<String, ErrorStack> {
-        Ok(hex::encode(self.signature.to_der()?))
     }
 
     pub fn verify(&self, data: &[u8], public_key: EcPoint) -> Result<bool, ErrorStack> {

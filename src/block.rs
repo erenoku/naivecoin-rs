@@ -13,7 +13,7 @@ use crate::{
     transaction::{Transaction, UnspentTxOut},
     validator::Validator,
     wallet::Wallet,
-    BLOCK_CHAIN, WALLET,
+    BLOCK_CHAIN,
 };
 
 pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
@@ -43,8 +43,8 @@ impl Block {
     }
 
     /// check if the next block is valid for the given previous block
-    pub fn is_valid_next_block(next: &Block, prev: &Block) -> bool {
-        if Validator::is_valid(prev, next) {
+    pub fn is_valid_next_block(next: &Block, prev: &Block, chain: &BlockChain) -> bool {
+        if Validator::is_valid(prev, next, chain) {
             return true;
         }
 
@@ -103,7 +103,7 @@ impl Block {
         )
     }
 
-    pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Self {
+    pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Option<Self> {
         let chain = BLOCK_CHAIN.read().unwrap();
         let public_key = &Wallet::global().read().unwrap().get_public_key();
         let private_key = &Wallet::global().read().unwrap().get_private_key();
@@ -112,13 +112,15 @@ impl Block {
             KeyPair::public_key_to_hex(public_key),
             (chain.get_latest().index + 1) as u64,
         );
-        let tx = Wallet::create_transaction(
+        if let Some(tx) = Wallet::create_transaction(
             receiver_addr,
             amount,
             private_key,
             &UNSPENT_TX_OUTS.read().unwrap(),
-        );
-        Self::generate_next_raw(vec![coinbase_tx, tx], &chain)
+        ) {
+            return Some(Self::generate_next_raw(vec![coinbase_tx, tx], &chain));
+        }
+        None
     }
 
     pub fn find_block(

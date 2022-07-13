@@ -55,17 +55,20 @@ struct MineTxData {
 fn mine_transaction(body: String) -> rouille::Response {
     let data: MineTxData = serde_json::from_str(&body).unwrap();
 
-    let next_block = Block::generate_next_with_transaction(data.address, data.amount);
+    if let Some(next_block) = Block::generate_next_with_transaction(data.address, data.amount) {
+        BLOCK_CHAIN.write().unwrap().add(next_block.clone());
 
-    BLOCK_CHAIN.write().unwrap().add(next_block);
+        let msg = Message {
+            m_type: MessageType::ResponseBlockchain,
+            content: serde_json::to_string(&vec![BLOCK_CHAIN.read().unwrap().get_latest()])
+                .unwrap(),
+        };
+        msg.broadcast();
 
-    let msg = Message {
-        m_type: MessageType::ResponseBlockchain,
-        content: serde_json::to_string(&vec![BLOCK_CHAIN.read().unwrap().get_latest()]).unwrap(),
-    };
-    msg.broadcast();
-
-    rouille::Response::text("")
+        rouille::Response::json(&next_block)
+    } else {
+        rouille::Response::text("error mining transaction").with_status_code(500)
+    }
 }
 
 fn get_balance() -> rouille::Response {

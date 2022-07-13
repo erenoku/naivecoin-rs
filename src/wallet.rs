@@ -1,3 +1,4 @@
+use log::error;
 use openssl::ec::EcPoint;
 use std::path::Path;
 use std::sync::RwLock;
@@ -58,7 +59,7 @@ impl Wallet {
     pub fn find_tx_outs_for_amount(
         amount: &u64,
         my_unspent_tx_outs: Vec<&UnspentTxOut>,
-    ) -> (Vec<UnspentTxOut>, u64) {
+    ) -> Option<(Vec<UnspentTxOut>, u64)> {
         let mut current_amount = 0;
         let mut included_unspent_tx_outs: Vec<UnspentTxOut> = vec![];
 
@@ -66,11 +67,12 @@ impl Wallet {
             included_unspent_tx_outs.push(my_unspent_tx_out.clone());
             current_amount += my_unspent_tx_out.amount;
             if current_amount >= *amount {
-                return (included_unspent_tx_outs, current_amount - amount);
+                return Some((included_unspent_tx_outs, current_amount - amount));
             }
         }
 
-        panic!("not enough coins to send transaction")
+        error!("not enough coins to send transaction");
+        None
     }
 
     pub fn create_tx_outs(
@@ -100,7 +102,7 @@ impl Wallet {
         amount: u64,
         private_key: &PrivateKey,
         unspent_tx_outs: &Vec<UnspentTxOut>,
-    ) -> Transaction {
+    ) -> Option<Transaction> {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());
         let my_unspent_tx_outs: Vec<&UnspentTxOut> = unspent_tx_outs
             .iter()
@@ -108,7 +110,7 @@ impl Wallet {
             .collect();
 
         let (included_unspent_tx_outs, left_over_amount) =
-            Self::find_tx_outs_for_amount(&amount, my_unspent_tx_outs);
+            Self::find_tx_outs_for_amount(&amount, my_unspent_tx_outs)?;
 
         let unsigned_tx_ins: Vec<TxIn> = included_unspent_tx_outs
             .iter()
@@ -134,7 +136,7 @@ impl Wallet {
             })
             .collect();
 
-        tx
+        Some(tx)
     }
 }
 

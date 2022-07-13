@@ -227,7 +227,6 @@ impl Server {
                 let received_data = &received_data[..bytes_read];
                 if let Ok(str_buf) = from_utf8(received_data) {
                     Self::handle_receive_msg(str_buf, connection);
-                    info!("Received data: {}", str_buf.trim_end());
                 } else {
                     info!("Received (none UTF-8) data: {:?}", received_data);
                 }
