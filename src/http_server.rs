@@ -103,7 +103,7 @@ pub fn init_http_server(http_port: String) {
              get_balance()
          },
 
-         (GET) (/mineBlock) => {
+         (POST) (/mineBlock) => {
              mine_block()
          },
 

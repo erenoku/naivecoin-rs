@@ -1,4 +1,3 @@
-use log::info;
 use openssl::ec::EcPoint;
 use std::path::Path;
 use std::sync::RwLock;
@@ -32,7 +31,7 @@ impl Wallet {
             let key = KeyPair::generate();
             key.private_key.write_file_pem(&path).unwrap();
 
-            info!(
+            println!(
                 "Wallet generated. public key: {}",
                 KeyPair::public_key_to_hex(&key.private_key.to_public_key())
             );
@@ -40,7 +39,7 @@ impl Wallet {
             return key.private_key;
         }
 
-        info!(
+        println!(
             "Using already existing wallet. public key: {}",
             KeyPair::public_key_to_hex(&self.get_public_key())
         );
