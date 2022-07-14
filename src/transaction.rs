@@ -49,14 +49,14 @@ impl Transaction {
         let tx_in_content = self
             .tx_ins
             .iter()
-            .map(|tx_in| tx_in.tx_out_id.clone() + &tx_in.tx_out_index.to_string())
+            .map(|tx_in| tx_in.tx_out_index.to_string() + &tx_in.tx_out_id)
             .reduce(|a, b| a + &b)
             .unwrap_or_default();
 
         let tx_out_content = self
             .tx_outs
             .iter()
-            .map(|tx_out| tx_out.address.clone() + &tx_out.amount.to_string())
+            .map(|tx_out| tx_out.amount.to_string() + &tx_out.address)
             .reduce(|a, b| a + &b)
             .unwrap_or_default();
 
@@ -131,7 +131,7 @@ impl Transaction {
         }
 
         // transactions except coinbase transaction
-        let normal_transactions = new_transactions.clone().split_off(1);
+        let normal_transactions = &new_transactions[1..];
         normal_transactions
             .iter()
             .map(|tx_in| tx_in.validate(new_unspent_tx_outs))
@@ -343,10 +343,10 @@ impl TxIn {
 fn find_unspent_tx_out(
     transaction_id: &String,
     index: &u64,
-    new_unspent_tx_outs: &Vec<UnspentTxOut>,
+    new_unspent_tx_outs: &[UnspentTxOut],
 ) -> Option<UnspentTxOut> {
     new_unspent_tx_outs
-        .clone()
+        .to_owned()
         .into_iter()
         .find(|new_tx_o| &new_tx_o.tx_out_id == transaction_id && &new_tx_o.tx_out_index == index)
 }

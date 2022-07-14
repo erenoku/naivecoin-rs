@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use log::info;
 
 use crate::block::{Block, UNSPENT_TX_OUTS};
@@ -71,15 +73,13 @@ impl BlockChain {
 
         let mut new_unspent_tx_outs: Vec<UnspentTxOut> = vec![];
 
-        for i in 1..self.blocks.len() {
-            let current_blocks: Vec<Block> = self.blocks[0..i - 1].to_vec();
+        let mut current_chain = BlockChain { blocks: vec![] };
 
+        for i in 1..self.blocks.len() {
             if !Block::is_valid_next_block(
                 self.blocks.get(i).unwrap(),
                 self.blocks.get(i - 1).unwrap(),
-                &BlockChain {
-                    blocks: current_blocks,
-                },
+                &current_chain,
             ) {
                 return None;
             }
@@ -93,6 +93,10 @@ impl BlockChain {
             } else {
                 return None;
             }
+
+            current_chain
+                .blocks
+                .push(self.blocks.get(i).unwrap().to_owned());
         }
         Some(new_unspent_tx_outs)
     }
