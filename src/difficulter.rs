@@ -40,12 +40,14 @@ impl Difficulter {
     }
 
     pub fn get_difficulty(chain: &BlockChain) -> u32 {
-        let latest = chain.get_latest();
-
-        if latest.index % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && latest.index != 0 {
-            return Difficulter::get_adjusted_difficulty(chain, &latest);
+        if let Some(latest) = chain.get_latest() {
+            if latest.index % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && latest.index != 0 {
+                return Difficulter::get_adjusted_difficulty(chain, &latest);
+            }
+            latest.difficulty
+        } else {
+            0
         }
-        latest.difficulty
     }
 }
 

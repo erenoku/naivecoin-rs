@@ -1,7 +1,7 @@
 use log::error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{block::Block, chain::BlockChain, difficulter::Difficulter, BLOCK_CHAIN};
+use crate::{block::Block, chain::BlockChain, difficulter::Difficulter};
 
 pub struct Validator;
 
@@ -11,7 +11,7 @@ impl Validator {
             && prev_block.hash == next_block.previous_hash
             && next_block.calculate_hash() == next_block.hash
             && Self::has_valid_difficulty(next_block, chain)
-            && Self::hash_matches_difficulty(&next_block.hash, &next_block.difficulty)
+            && Self::hash_matches_difficulty(&next_block.hash, &next_block.difficulty, true)
             && Self::is_valid_timestamp(next_block, prev_block)
     }
 
@@ -39,7 +39,7 @@ impl Validator {
         r
     }
 
-    pub fn hash_matches_difficulty(hash: &str, difficulty: &u32) -> bool {
+    pub fn hash_matches_difficulty(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
         let end = difficulty / 4 + 1;
         // end = 2
 
@@ -78,11 +78,15 @@ impl Validator {
             // it is the last iteration not all bytes have to be 0
             if i == end - 1 {
                 if !a.starts_with("0".repeat(*difficulty as usize % 4).as_str()) {
-                    error!("hash doesn't match difficulty");
+                    if is_validate {
+                        error!("hash doesn't match difficulty hash: {a}, difficulty: {difficulty}");
+                    }
                     return false;
                 }
             } else if a != "0000" {
-                error!("hash doesn't match difficulty");
+                if is_validate {
+                    error!("hash doesn't match difficulty hash: {a}, difficulty: {difficulty}");
+                }
                 return false;
             }
         }

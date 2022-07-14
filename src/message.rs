@@ -46,7 +46,7 @@ impl Message {
         let mut received_blocks: Vec<Block> = serde_json::from_str(&self.content).unwrap();
         received_blocks.sort_by(|a, b| a.index.cmp(&b.index));
         let latest_block_received = received_blocks.last().unwrap();
-        let latest_block_held = BLOCK_CHAIN.read().unwrap().get_latest();
+        let latest_block_held = BLOCK_CHAIN.read().unwrap().get_latest().unwrap();
 
         if latest_block_received.index > latest_block_held.index {
             if latest_block_held.hash == latest_block_received.previous_hash {

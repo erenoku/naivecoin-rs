@@ -2,7 +2,7 @@ use log::info;
 
 use crate::block::{Block, UNSPENT_TX_OUTS};
 use crate::difficulter::Difficulter;
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, UnspentTxOut};
 
 pub struct BlockChain {
     pub blocks: Vec<Block>,
@@ -14,7 +14,7 @@ impl BlockChain {
         let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
 
         // TODO: return error
-        if Block::is_valid_next_block(&new, &self.get_latest(), self) {
+        if Block::is_valid_next_block(&new, &self.get_latest().unwrap(), self) {
             if let Some(ret_val) =
                 Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
             {
@@ -28,18 +28,20 @@ impl BlockChain {
     pub fn replace(&mut self, new_blocks: Vec<Block>) {
         let new_chain = BlockChain { blocks: new_blocks };
 
-        if new_chain.is_valid()
-            && Difficulter::get_accumulated_difficulty(&new_chain)
+        if let Some(new_unspent_tx_outs) = new_chain.is_valid() {
+            if Difficulter::get_accumulated_difficulty(&new_chain)
                 > Difficulter::get_accumulated_difficulty(self)
-        {
-            self.blocks = new_chain.blocks;
+            {
+                self.blocks = new_chain.blocks;
+                *UNSPENT_TX_OUTS.write().unwrap() = new_unspent_tx_outs
+            }
         }
         // TODO: return error
     }
 
     /// return the latest block
-    pub fn get_latest(&self) -> Block {
-        self.blocks.last().unwrap().clone()
+    pub fn get_latest(&self) -> Option<Block> {
+        Some(self.blocks.last()?.clone())
     }
 
     /// return the genesis block
@@ -61,22 +63,38 @@ impl BlockChain {
     }
 
     /// check if the complete chain is valid
-    fn is_valid(&self) -> bool {
+    // TODO: return result
+    fn is_valid(&self) -> Option<Vec<UnspentTxOut>> {
         if *self.blocks.first().unwrap() != BlockChain::get_genesis() {
-            return false;
+            return None;
         }
 
+        let mut new_unspent_tx_outs: Vec<UnspentTxOut> = vec![];
+
         for i in 1..self.blocks.len() {
+            let current_blocks: Vec<Block> = self.blocks[0..i - 1].to_vec();
+
             if !Block::is_valid_next_block(
                 self.blocks.get(i).unwrap(),
                 self.blocks.get(i - 1).unwrap(),
-                self,
+                &BlockChain {
+                    blocks: current_blocks,
+                },
             ) {
-                return false;
+                return None;
+            }
+
+            if let Some(x) = Transaction::process_transaction(
+                &self.blocks.get(i).unwrap().data,
+                &new_unspent_tx_outs,
+                &(self.blocks.get(i).unwrap().index as u64),
+            ) {
+                new_unspent_tx_outs = x;
+            } else {
+                return None;
             }
         }
-
-        true
+        Some(new_unspent_tx_outs)
     }
 }
 

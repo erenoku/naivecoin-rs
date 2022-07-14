@@ -79,14 +79,14 @@ impl Block {
 
         let coinbase_tx = Transaction::get_coinbase_tx(
             KeyPair::public_key_to_hex(public_key),
-            (chain.get_latest().index + 1) as u64,
+            (chain.get_latest().unwrap().index + 1) as u64,
         );
         Self::generate_next_raw(vec![coinbase_tx], &chain)
     }
 
     /// generate the next block with given block_data
     pub fn generate_next_raw(block_data: Vec<Transaction>, chain: &BlockChain) -> Self {
-        let prev_block = chain.get_latest();
+        let prev_block = chain.get_latest().unwrap();
         let next_index = prev_block.index + 1;
         let next_timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -110,7 +110,7 @@ impl Block {
 
         let coinbase_tx = Transaction::get_coinbase_tx(
             KeyPair::public_key_to_hex(public_key),
-            (chain.get_latest().index + 1) as u64,
+            (chain.get_latest().unwrap().index + 1) as u64,
         );
         if let Some(tx) = Wallet::create_transaction(
             receiver_addr,
@@ -141,7 +141,7 @@ impl Block {
                 &nonce,
             );
 
-            if Validator::hash_matches_difficulty(&hash, &difficulty) {
+            if Validator::hash_matches_difficulty(&hash, &difficulty, false) {
                 return Self {
                     index,
                     previous_hash,
