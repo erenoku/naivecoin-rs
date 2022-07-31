@@ -235,9 +235,8 @@ impl Server {
                         let received_data = &buf[..bytes_read];
                         if let Ok(str_buf) = from_utf8(received_data) {
                             match serde_json::from_str::<Message>(str_buf) {
-                                Ok(_) => {
-                                    info!("got {}", str_buf);
-                                    Self::handle_receive_msg(str_buf, connection);
+                                Ok(msg) => {
+                                    Self::handle_receive_msg(&msg, connection);
                                     *buf = vec![0; 4096];
                                     bytes_read = 0;
                                 }
@@ -276,7 +275,7 @@ impl Server {
         Token(next)
     }
 
-    fn handle_receive_msg(msg: &str, connection: &mut TcpStream) {
+    fn handle_receive_msg(msg: &Message, connection: &mut TcpStream) {
         P2PHandler::handle_receive_msg(msg, connection)
     }
 }

@@ -7,12 +7,10 @@ use crate::BLOCK_CHAIN;
 pub struct P2PHandler;
 
 impl P2PHandler {
-    pub fn handle_receive_msg(msg: &str, connection: &mut TcpStream) {
-        let message = Message::get_message(msg);
+    pub fn handle_receive_msg(msg: &Message, connection: &mut TcpStream) {
+        info!("{:?}", msg.m_type);
 
-        info!("{:?}", message.m_type);
-
-        match message.m_type {
+        match msg.m_type {
             MessageType::QueryAll => {
                 let msg = Message {
                     m_type: MessageType::ResponseBlockchain,
@@ -30,7 +28,7 @@ impl P2PHandler {
                 msg.send_request(connection);
             }
             MessageType::ResponseBlockchain => {
-                message.handle_blockchain_response();
+                msg.handle_blockchain_response();
             }
         }
     }
