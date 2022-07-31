@@ -1,4 +1,3 @@
-use log::info;
 use mio::{net::TcpStream, Token};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -28,7 +27,9 @@ impl Message {
 
     pub fn send_request(&self, stream: &mut TcpStream) {
         let json = self.serialize();
-        stream.write_all(json.as_bytes()).unwrap();
+        let buf = json.as_bytes();
+
+        stream.write_all(buf).unwrap();
     }
 
     pub fn serialize(&self) -> String {

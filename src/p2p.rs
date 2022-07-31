@@ -19,7 +19,7 @@ const SERVER: Token = Token(0);
 
 static POLL: Lazy<RwLock<Poll>> = Lazy::new(|| RwLock::new(Poll::new().unwrap()));
 static UNIQUE_TOKEN: Lazy<RwLock<Token>> = Lazy::new(|| RwLock::new(Token(SERVER.0 + 1)));
-static CONNECTIONS: Lazy<RwLock<HashMap<Token, TcpStream>>> =
+static CONNECTIONS: Lazy<RwLock<HashMap<Token, (TcpStream, Vec<u8>, u32)>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub struct Server {
@@ -82,7 +82,7 @@ impl Server {
                                     .unwrap();
 
                                 let mut c = CONNECTIONS.write().unwrap();
-                                c.insert(token, connection);
+                                c.insert(token, (connection, vec![0; 4096], 0));
                                 drop(c);
                             }
                         }
@@ -90,9 +90,12 @@ impl Server {
                             let mut c = CONNECTIONS.write().unwrap();
                             // Maybe received an event for a TCP connection.
                             let done = if let Some(connection) = c.get_mut(&token) {
+                                let (connection, buf, bytes_read) = connection;
                                 Self::handle_connection_event(
                                     POLL.write().unwrap().registry(),
                                     connection,
+                                    buf,
+                                    bytes_read,
                                     event,
                                 )
                                 .unwrap()
@@ -101,7 +104,7 @@ impl Server {
                                 false
                             };
                             if done {
-                                if let Some(mut connection) = c.remove(&token) {
+                                if let Some((mut connection, ..)) = c.remove(&token) {
                                     POLL.write()
                                         .unwrap()
                                         .registry()
@@ -130,7 +133,10 @@ impl Server {
             )
             .unwrap();
 
-        CONNECTIONS.write().unwrap().insert(token, connection);
+        CONNECTIONS
+            .write()
+            .unwrap()
+            .insert(token, (connection, vec![0; 4096], 0));
 
         token
     }
@@ -144,15 +150,21 @@ impl Server {
             stream.write(buf)
         } else {
             let mut c = CONNECTIONS.write().unwrap();
-            let stream = c.get_mut(t).unwrap();
+            let (stream, ..) = c.get_mut(t).unwrap();
             stream.write(buf)
         }
     }
 
     pub fn broadcast(buf: &[u8]) {
-        let c = CONNECTIONS.read().unwrap();
+        let mut c = CONNECTIONS.write().unwrap();
 
-        for (_, mut stream) in c.iter() {
+        let mut tokens: Vec<Token> = vec![];
+
+        for (t, _) in c.iter() {
+            tokens.push(t.clone());
+        }
+        for t in tokens.iter() {
+            let (stream, ..) = c.get_mut(t).unwrap();
             stream.write_all(buf).unwrap();
         }
     }
@@ -161,6 +173,8 @@ impl Server {
     fn handle_connection_event(
         registry: &Registry,
         connection: &mut TcpStream,
+        buf: &mut Vec<u8>,
+        bytes_read: &u32,
         event: &Event,
     ) -> io::Result<bool> {
         let data = Message {
@@ -188,7 +202,9 @@ impl Server {
                 Err(ref err) if Self::would_block(err) => {}
                 // Got interrupted (how rude!), we'll try again.
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(registry, connection, event)
+                    return Self::handle_connection_event(
+                        registry, connection, buf, bytes_read, event,
+                    )
                 }
                 // Other errors we'll consider fatal.
                 Err(err) => return Err(err),
@@ -197,11 +213,10 @@ impl Server {
 
         if event.is_readable() {
             let mut connection_closed = false;
-            let mut received_data = vec![0; 4096];
             let mut bytes_read = 0;
             // We can (maybe) read from the connection.
             loop {
-                match connection.read(&mut received_data[bytes_read..]) {
+                match connection.read(&mut buf[bytes_read..]) {
                     Ok(0) => {
                         // Reading 0 bytes means the other side has closed the
                         // connection or is done writing, then so are we.
@@ -210,25 +225,31 @@ impl Server {
                     }
                     Ok(n) => {
                         bytes_read += n;
-                        if bytes_read == received_data.len() {
-                            received_data.resize(received_data.len() + 1024, 0);
+                        if bytes_read == buf.len() {
+                            buf.resize(buf.len() + 1024, 0);
                         }
                     }
                     // Would block "errors" are the OS's way of saying that the
                     // connection is not actually ready to perform this I/O operation.
-                    Err(ref err) if Self::would_block(err) => break,
+                    Err(ref err) if Self::would_block(err) => {
+                        let received_data = &buf[..bytes_read];
+                        if let Ok(str_buf) = from_utf8(received_data) {
+                            match serde_json::from_str::<Message>(str_buf) {
+                                Ok(_) => {
+                                    info!("got {}", str_buf);
+                                    Self::handle_receive_msg(str_buf, connection);
+                                    *buf = vec![0; 4096];
+                                    bytes_read = 0;
+                                }
+                                _ => break,
+                            }
+                        } else {
+                            info!("Received (none UTF-8) data: {:?}", received_data);
+                        }
+                    }
                     Err(ref err) if Self::interrupted(err) => continue,
                     // Other errors we'll consider fatal.
                     Err(err) => return Err(err),
-                }
-            }
-
-            if bytes_read != 0 {
-                let received_data = &received_data[..bytes_read];
-                if let Ok(str_buf) = from_utf8(received_data) {
-                    Self::handle_receive_msg(str_buf, connection);
-                } else {
-                    info!("Received (none UTF-8) data: {:?}", received_data);
                 }
             }
 
