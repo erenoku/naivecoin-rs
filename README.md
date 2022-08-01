@@ -42,6 +42,12 @@ curl --data '{"address":"ADDRESS_OF_THE_SECOND_PEER", "amount":DESIRED_AMOUNT}' 
 curl localhost:8000/balance
 ```
 
+## TODO
+
+- [ ] Add spec tests
+- [ ] Send length delimited json instead of trying to parse every incoming packet
+- [ ] Impement [transaction relaying](https://lhartikk.github.io/jekyll/update/2017/07/10/chapter5.html)
+
 ## References
 
 - https://github.com/lhartikk/naivecoin
