@@ -174,7 +174,7 @@ impl Server {
         registry: &Registry,
         connection: &mut TcpStream,
         buf: &mut Vec<u8>,
-        bytes_read: &u32,
+        bytes_read: &mut u32,
         event: &Event,
     ) -> io::Result<bool> {
         let data = Message {
@@ -213,10 +213,10 @@ impl Server {
 
         if event.is_readable() {
             let mut connection_closed = false;
-            let mut bytes_read = 0;
+
             // We can (maybe) read from the connection.
             loop {
-                match connection.read(&mut buf[bytes_read..]) {
+                match connection.read(&mut buf[*bytes_read as usize..]) {
                     Ok(0) => {
                         // Reading 0 bytes means the other side has closed the
                         // connection or is done writing, then so are we.
@@ -224,21 +224,21 @@ impl Server {
                         break;
                     }
                     Ok(n) => {
-                        bytes_read += n;
-                        if bytes_read == buf.len() {
+                        *bytes_read += n as u32;
+                        if *bytes_read as usize == buf.len() {
                             buf.resize(buf.len() + 1024, 0);
                         }
                     }
                     // Would block "errors" are the OS's way of saying that the
                     // connection is not actually ready to perform this I/O operation.
                     Err(ref err) if Self::would_block(err) => {
-                        let received_data = &buf[..bytes_read];
+                        let received_data = &buf[..*bytes_read as usize];
                         if let Ok(str_buf) = from_utf8(received_data) {
                             match serde_json::from_str::<Message>(str_buf) {
                                 Ok(msg) => {
                                     Self::handle_receive_msg(&msg, connection);
                                     *buf = vec![0; 4096];
-                                    bytes_read = 0;
+                                    *bytes_read = 0_u32;
                                 }
                                 _ => break,
                             }
