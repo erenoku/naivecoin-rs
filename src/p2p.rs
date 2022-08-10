@@ -215,7 +215,7 @@ impl Server {
             let mut connection_closed = false;
 
             // We can (maybe) read from the connection.
-            loop {
+            'outer: loop {
                 match connection.read(&mut buf[*bytes_read as usize..]) {
                     Ok(0) => {
                         // Reading 0 bytes means the other side has closed the
@@ -232,18 +232,46 @@ impl Server {
                     // Would block "errors" are the OS's way of saying that the
                     // connection is not actually ready to perform this I/O operation.
                     Err(ref err) if Self::would_block(err) => {
-                        let received_data = &buf[..*bytes_read as usize];
-                        if let Ok(str_buf) = from_utf8(received_data) {
-                            match serde_json::from_str::<Message>(str_buf) {
-                                Ok(msg) => {
-                                    Self::handle_receive_msg(&msg, connection);
-                                    *buf = vec![0; 4096];
-                                    *bytes_read = 0_u32;
-                                }
-                                _ => break,
+                        let mut last_read: bool;
+                        loop {
+                            let received_data = &buf[..*bytes_read as usize];
+
+                            let s = received_data
+                                .iter()
+                                .cloned()
+                                .take_while(|&ch| ch != 0)
+                                .collect::<Vec<u8>>();
+
+                            // last read
+                            last_read = s.len() + 1 == received_data.len();
+
+                            // partial read
+                            if !received_data[s.len()] == b'\0' {
+                                break 'outer;
                             }
-                        } else {
-                            info!("Received (none UTF-8) data: {:?}", received_data);
+
+                            *buf = buf[s.len() + 1..].to_vec();
+                            *bytes_read -= s.len() as u32 + 1;
+
+                            // logic
+                            if let Ok(str_buf) = from_utf8(&s) {
+                                match serde_json::from_str::<Message>(str_buf) {
+                                    Ok(msg) => {
+                                        info!("received json: {:?}", msg);
+                                        Self::handle_receive_msg(&msg, connection);
+                                    }
+                                    Err(e) => {
+                                        info!("error {e}");
+                                        break 'outer;
+                                    }
+                                }
+                            }
+
+                            if last_read {
+                                *buf = vec![0; 4096];
+                                *bytes_read = 0_u32;
+                                break 'outer;
+                            }
                         }
                     }
                     Err(ref err) if Self::interrupted(err) => continue,

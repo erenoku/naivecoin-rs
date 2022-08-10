@@ -33,7 +33,7 @@ impl Message {
     }
 
     pub fn serialize(&self) -> String {
-        serde_json::to_string(&self).unwrap()
+        serde_json::to_string(&self).unwrap() + "\0"
     }
 
     pub fn get_message(msg: &str) -> Message {
