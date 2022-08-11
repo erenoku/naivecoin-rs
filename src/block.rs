@@ -13,7 +13,7 @@ use crate::{
     transaction::{Transaction, UnspentTxOut},
     validator::Validator,
     wallet::Wallet,
-    BLOCK_CHAIN,
+    BLOCK_CHAIN, TRANSACTIN_POOL,
 };
 
 pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
@@ -81,7 +81,8 @@ impl Block {
             KeyPair::public_key_to_hex(public_key),
             (chain.get_latest().unwrap().index + 1) as u64,
         );
-        Self::generate_next_raw(vec![coinbase_tx], &chain)
+        let tx = &*TRANSACTIN_POOL.read().unwrap();
+        Self::generate_next_raw(vec![vec![coinbase_tx], tx.0.clone()].concat(), &chain)
     }
 
     /// generate the next block with given block_data
@@ -116,7 +117,7 @@ impl Block {
             receiver_addr,
             amount,
             private_key,
-            &UNSPENT_TX_OUTS.read().unwrap(),
+            UNSPENT_TX_OUTS.read().unwrap().to_vec(),
         ) {
             return Some(Self::generate_next_raw(vec![coinbase_tx, tx], &chain));
         }

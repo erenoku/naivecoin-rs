@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::RwLock;
 use std::thread;
+use transaction_pool::TransactionPool;
 
 use crate::block::Block;
 use crate::wallet::Wallet;
@@ -23,6 +24,7 @@ mod message;
 mod p2p;
 mod p2p_handler;
 mod transaction;
+mod transaction_pool;
 mod validator;
 mod wallet;
 
@@ -31,6 +33,9 @@ static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
         blocks: vec![BlockChain::get_genesis()],
     })
 });
+
+static TRANSACTIN_POOL: Lazy<RwLock<TransactionPool>> =
+    Lazy::new(|| RwLock::new(TransactionPool::new()));
 
 static WALLET: OnceCell<RwLock<Wallet>> = OnceCell::new();
 

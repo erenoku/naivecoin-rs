@@ -1,15 +1,21 @@
+use log::{error, info, warn};
 use mio::{net::TcpStream, Token};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::thread;
 
-use crate::{p2p::Server, Block, BLOCK_CHAIN};
+use crate::{
+    block::UNSPENT_TX_OUTS, p2p::Server, transaction::Transaction, Block, BLOCK_CHAIN,
+    TRANSACTIN_POOL,
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum MessageType {
     QueryLatest,
     QueryAll,
     ResponseBlockchain,
+    QueryTransactionPool,
+    ResponseTransactionPool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -34,13 +40,6 @@ impl Message {
 
     pub fn serialize(&self) -> String {
         serde_json::to_string(&self).unwrap() + "\0"
-    }
-
-    pub fn get_message(msg: &str) -> Message {
-        serde_json::from_str(msg).unwrap_or(Message {
-            m_type: MessageType::QueryLatest,
-            content: String::new(),
-        })
     }
 
     pub fn handle_blockchain_response(&self) {
@@ -82,6 +81,33 @@ impl Message {
         // else received blockchain is not longer than current blockchain. Do nothing
     }
 
+    pub fn handle_transaction_pool_response(&self) {
+        let received_transactions: Vec<Transaction> =
+            serde_json::from_str(&self.content).expect("error parsing json");
+        if received_transactions.len() == 0 {
+            warn!("received_transactions.len() == 0");
+            return;
+        }
+        for received_tx in received_transactions {
+            let ok = TRANSACTIN_POOL
+                .write()
+                .unwrap()
+                .add(received_tx, &UNSPENT_TX_OUTS.read().unwrap());
+
+            if !ok {
+                warn!("error adding transaction");
+            } else {
+                thread::spawn(|| {
+                    Message {
+                        m_type: MessageType::ResponseTransactionPool,
+                        content: serde_json::to_string(&*TRANSACTIN_POOL.read().unwrap()).unwrap(),
+                    }
+                    .broadcast()
+                });
+            }
+        }
+    }
+
     pub fn broadcast(self) {
         Server::broadcast(self.serialize().as_bytes());
     }
@@ -100,15 +126,5 @@ mod tests {
         .serialize();
 
         assert!(serialized == r##"{"m_type":"QueryAll","content":""}"##);
-    }
-
-    #[test]
-    fn test_deserialize() {
-        assert!(
-            Message {
-                m_type: MessageType::QueryLatest,
-                content: String::new()
-            } == Message::get_message(r##"{"m_type":"QueryLatest","content":""}"##)
-        );
     }
 }

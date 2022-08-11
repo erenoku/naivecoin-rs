@@ -36,17 +36,26 @@ curl -X POST localhost:8000/mineBlock
 curl --data '{"address":"ADDRESS_OF_THE_SECOND_PEER", "amount":DESIRED_AMOUNT}' localhost:8000/mineTransaction
 ```
 
+### Send a Transaction to Pool
+
+```bash
+curl --data '{"address":"ADDRESS_OF_THE_SECOND_PEER", "amount":DESIRED_AMOUNT}' localhost:8000/sendTransaction
+# then mine a block so it gets added to the blockchain
+curl -X POST localhost:8000/mineBlock
+```
+
 ### Get Balance
 
 ```bash
-curl localhost:8000/balance
+curl localhost:8001/balance
+# the balance should be DESIRED_AMOUNT
 ```
 
 ## TODO
 
 - [ ] Add spec tests
 - [ ] Send length delimited json instead of trying to parse every incoming packet
-- [ ] Impement [transaction relaying](https://lhartikk.github.io/jekyll/update/2017/07/10/chapter5.html)
+- [x] Impement [transaction relaying](https://lhartikk.github.io/jekyll/update/2017/07/10/chapter5.html)
 
 ## References
 

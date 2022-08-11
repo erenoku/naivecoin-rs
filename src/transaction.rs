@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use crate::crypto::{KeyPair, PrivateKey, Signature};
 use crate::COINBASE_AMOUNT;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UnspentTxOut {
     pub tx_out_id: String,
     pub tx_out_index: u64,

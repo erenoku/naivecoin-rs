@@ -1,11 +1,13 @@
 use log::error;
 use openssl::ec::EcPoint;
+use std::borrow::Borrow;
 use std::path::Path;
 use std::sync::RwLock;
 
 use crate::crypto::{KeyPair, PrivateKey};
 use crate::transaction::{Transaction, TxIn, TxOut, UnspentTxOut};
-use crate::WALLET;
+use crate::transaction_pool::TransactionPool;
+use crate::{TRANSACTIN_POOL, WALLET};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -97,20 +99,54 @@ impl Wallet {
         }
     }
 
+    // TODO: find a better place
+    fn filter_tx_pool_txs(
+        unspent_tx_outs: Vec<UnspentTxOut>,
+        pool: &TransactionPool,
+    ) -> Vec<UnspentTxOut> {
+        let tx_ins: Vec<TxIn> = pool
+            .0
+            .iter()
+            .map(|tx| tx.tx_ins.clone())
+            .flatten()
+            .collect();
+
+        let mut removable: Vec<UnspentTxOut> = Vec::new();
+        for u_tx_out in unspent_tx_outs.clone() {
+            let tx_in = tx_ins.iter().find(|a_tx_in| {
+                a_tx_in.tx_out_index == u_tx_out.tx_out_index
+                    && a_tx_in.tx_out_id == u_tx_out.tx_out_id
+            });
+
+            if tx_in.is_some() {
+                removable.push(u_tx_out);
+            }
+        }
+
+        unspent_tx_outs
+            .into_iter()
+            .filter(|u_tx_out| !removable.contains(u_tx_out))
+            .collect()
+    }
+
     pub fn create_transaction(
         receiver_addr: String,
         amount: u64,
         private_key: &PrivateKey,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: Vec<UnspentTxOut>,
     ) -> Option<Transaction> {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());
-        let my_unspent_tx_outs: Vec<&UnspentTxOut> = unspent_tx_outs
-            .iter()
+        let my_unspent_tx_outs_a: Vec<UnspentTxOut> = unspent_tx_outs
+            .clone()
+            .into_iter()
             .filter(|u_tx_out| u_tx_out.address == my_addr)
             .collect();
+        let my_unspent_tx_outs: Vec<UnspentTxOut> =
+            Self::filter_tx_pool_txs(my_unspent_tx_outs_a, &TRANSACTIN_POOL.read().unwrap());
+        // filterTxPoolTxs(myUnspentTxOutsA, txPool);
 
         let (included_unspent_tx_outs, left_over_amount) =
-            Self::find_tx_outs_for_amount(&amount, my_unspent_tx_outs)?;
+            Self::find_tx_outs_for_amount(&amount, my_unspent_tx_outs.iter().collect())?;
 
         let unsigned_tx_ins: Vec<TxIn> = included_unspent_tx_outs
             .iter()
@@ -131,7 +167,7 @@ impl Wallet {
             .enumerate()
             .map(|(index, tx_in)| {
                 let mut t = tx_in.clone();
-                t.signature = TxIn::sign(tx.clone(), index as u64, &private_key, unspent_tx_outs);
+                t.signature = TxIn::sign(tx.clone(), index as u64, &private_key, &unspent_tx_outs);
                 t
             })
             .collect();

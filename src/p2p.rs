@@ -10,6 +10,7 @@ use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::time::Duration;
 use std::{thread, thread::JoinHandle};
 
 use crate::message::{Message, MessageType};
@@ -177,21 +178,51 @@ impl Server {
         bytes_read: &mut u32,
         event: &Event,
     ) -> io::Result<bool> {
-        let data = Message {
+        let query_chain_msg = Message {
             m_type: MessageType::QueryLatest,
             content: String::new(),
         }
         .serialize();
 
-        let data = data.as_bytes();
+        let query_transaction_msg = Message {
+            m_type: MessageType::QueryTransactionPool,
+            content: String::new(),
+        }
+        .serialize();
+
+        let chain_data = query_chain_msg.as_bytes();
+        let transaction_data = query_transaction_msg.as_bytes();
 
         if event.is_writable() {
             // We can (maybe) write to the connection.
-            match Self::send_to_peer(&event.token(), data, Some(connection)) {
+            match Self::send_to_peer(&event.token(), chain_data, Some(connection)) {
                 // We want to write the entire `DATA` buffer in a single go. If we
                 // write less we'll return a short write error (same as
                 // `io::Write::write_all` does).
-                Ok(n) if n < data.len() => return Err(io::ErrorKind::WriteZero.into()),
+                Ok(n) if n < chain_data.len() => return Err(io::ErrorKind::WriteZero.into()),
+                Ok(_) => {
+                    // After we've written something we'll reregister the connection
+                    // to only respond to readable events.
+                    registry.reregister(connection, event.token(), Interest::READABLE)?
+                }
+                // Would block "errors" are the OS's way of saying that the
+                // connection is not actually ready to perform this I/O operation.
+                Err(ref err) if Self::would_block(err) => {}
+                // Got interrupted (how rude!), we'll try again.
+                Err(ref err) if Self::interrupted(err) => {
+                    return Self::handle_connection_event(
+                        registry, connection, buf, bytes_read, event,
+                    )
+                }
+                // Other errors we'll consider fatal.
+                Err(err) => return Err(err),
+            }
+
+            match Self::send_to_peer(&event.token(), transaction_data, Some(connection)) {
+                // We want to write the entire `DATA` buffer in a single go. If we
+                // write less we'll return a short write error (same as
+                // `io::Write::write_all` does).
+                Ok(n) if n < transaction_data.len() => return Err(io::ErrorKind::WriteZero.into()),
                 Ok(_) => {
                     // After we've written something we'll reregister the connection
                     // to only respond to readable events.
