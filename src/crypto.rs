@@ -1,11 +1,11 @@
 use log::info;
 use openssl::{
     bn, ec,
-    ec::{EcGroup, EcKey, EcPoint, EcPointRef},
+    ec::{EcGroup, EcKey, EcPoint},
     ecdsa::EcdsaSig,
     error::ErrorStack,
     nid::Nid,
-    pkey::{Private, Public},
+    pkey::{Private},
 };
 use std::{
     error::Error,
@@ -123,7 +123,7 @@ impl PrivateKey {
             path.as_os_str().to_str().unwrap()
         );
 
-        return f.write_all(&pem);
+        f.write_all(&pem)
     }
 }
 
@@ -136,6 +136,6 @@ mod tests {
         let pair = KeyPair::generate();
 
         let encoded_pub_key = KeyPair::public_key_to_hex(&pair.private_key.to_public_key());
-        let decoded_pub_key = KeyPair::public_key_from_hex(&encoded_pub_key).unwrap();
+        let _decoded_pub_key = KeyPair::public_key_from_hex(&encoded_pub_key).unwrap();
     }
 }

@@ -41,14 +41,10 @@ impl TransactionPool {
 
         for (i, pool_tx) in self.0.iter().enumerate() {
             for pool_tx_in in pool_tx.tx_ins.iter() {
-                if unspent_tx_outs
-                    .iter()
-                    .find(|&u_tx_out| {
-                        u_tx_out.tx_out_id == pool_tx_in.tx_out_id
-                            && u_tx_out.tx_out_index == pool_tx_in.tx_out_index
-                    })
-                    .is_none()
-                {
+                if !unspent_tx_outs.iter().any(|u_tx_out| {
+                    u_tx_out.tx_out_id == pool_tx_in.tx_out_id
+                        && u_tx_out.tx_out_index == pool_tx_in.tx_out_index
+                }) {
                     info!("found some invalid");
                     r_indexes.push(i);
                 }
@@ -62,14 +58,10 @@ impl TransactionPool {
     }
 
     fn contains(&self, tx_in: &TxIn) -> bool {
-        let pool_tx_ins: Vec<&TxIn> = self.0.iter().map(|tx| &tx.tx_ins).flatten().collect();
+        let pool_tx_ins: Vec<&TxIn> = self.0.iter().flat_map(|tx| &tx.tx_ins).collect();
 
-        pool_tx_ins
-            .iter()
-            .find(|&&pool_tx_in| {
-                pool_tx_in.tx_out_id == tx_in.tx_out_id
-                    && pool_tx_in.tx_out_index == tx_in.tx_out_index
-            })
-            .is_some()
+        pool_tx_ins.iter().any(|&pool_tx_in| {
+            pool_tx_in.tx_out_id == tx_in.tx_out_id && pool_tx_in.tx_out_index == tx_in.tx_out_index
+        })
     }
 }

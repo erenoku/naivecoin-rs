@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+
 use std::io::Read;
 
 use crate::block::{Block, UNSPENT_TX_OUTS};

@@ -77,7 +77,7 @@ impl Transaction {
         let has_valid_tx_ins = self
             .tx_ins
             .iter()
-            .map(|tx_in| tx_in.validate(self, &new_unspent_tx_outs))
+            .map(|tx_in| tx_in.validate(self, new_unspent_tx_outs))
             .all(|x| x);
 
         if !has_valid_tx_ins {
@@ -89,7 +89,7 @@ impl Transaction {
         let total_tx_in_values = self
             .tx_ins
             .iter()
-            .map(|tx_in| tx_in.get_amount(&new_unspent_tx_outs))
+            .map(|tx_in| tx_in.get_amount(new_unspent_tx_outs))
             .reduce(|a, b| a + b)
             .unwrap_or(0);
 
@@ -121,8 +121,7 @@ impl Transaction {
 
         let tx_ins: Vec<&TxIn> = new_transactions
             .iter()
-            .map(|t| &t.tx_ins)
-            .flatten()
+            .flat_map(|t| &t.tx_ins)
             .collect();
 
         if TxIn::has_duplicates(tx_ins) {
@@ -209,7 +208,7 @@ impl Transaction {
             .iter()
             .map(|tx_in| UnspentTxOut {
                 tx_out_id: tx_in.tx_out_id.clone(),
-                tx_out_index: tx_in.tx_out_index.clone(),
+                tx_out_index: tx_in.tx_out_index,
                 address: String::new(),
                 amount: 0,
             })
@@ -219,16 +218,10 @@ impl Transaction {
             .clone()
             .into_iter()
             .filter(|u_tx_o| {
-                match find_unspent_tx_out(
-                    &u_tx_o.tx_out_id,
-                    &u_tx_o.tx_out_index,
-                    &consumed_tx_outs,
-                ) {
-                    Some(_) => false,
-                    None => true,
-                }
+                find_unspent_tx_out(&u_tx_o.tx_out_id, &u_tx_o.tx_out_index, &consumed_tx_outs)
+                    .is_none()
             })
-            .chain(new_unspent_tx_outs.clone().into_iter())
+            .chain(new_unspent_tx_outs.into_iter())
             .collect()
     }
 
@@ -237,7 +230,7 @@ impl Transaction {
         new_unspent_tx_outs: &Vec<UnspentTxOut>,
         block_index: &u64,
     ) -> Option<Vec<UnspentTxOut>> {
-        if !Self::validate_block_transactions(&new_transactions, &new_unspent_tx_outs, block_index)
+        if !Self::validate_block_transactions(new_transactions, new_unspent_tx_outs, block_index)
         {
             warn!("invalid block transaction");
             return None;
@@ -262,7 +255,7 @@ impl TxIn {
     pub fn validate(
         &self,
         transaction: &Transaction,
-        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+        new_unspent_tx_outs: &[UnspentTxOut],
     ) -> bool {
         match new_unspent_tx_outs.iter().find(|u_tx_out| {
             u_tx_out.tx_out_id == self.tx_out_id && u_tx_out.tx_out_index == self.tx_out_index
@@ -273,7 +266,7 @@ impl TxIn {
                 if let Ok(public_key) = KeyPair::public_key_from_hex(address) {
                     if let Ok(signature) = Signature::from_string(&self.signature) {
                         let r = signature
-                            .verify(&transaction.id.as_bytes(), public_key)
+                            .verify(transaction.id.as_bytes(), public_key)
                             .unwrap();
 
                         if !r {
@@ -304,7 +297,7 @@ impl TxIn {
         }
     }
 
-    pub fn get_amount(&self, new_unspent_tx_outs: &Vec<UnspentTxOut>) -> u64 {
+    pub fn get_amount(&self, new_unspent_tx_outs: &[UnspentTxOut]) -> u64 {
         find_unspent_tx_out(&self.tx_out_id, &self.tx_out_index, new_unspent_tx_outs)
             .unwrap()
             .amount
@@ -315,7 +308,7 @@ impl TxIn {
         tx: Transaction,
         tx_in_index: u64,
         private_key: &PrivateKey,
-        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+        new_unspent_tx_outs: &[UnspentTxOut],
     ) -> String {
         let tx_in = &tx.tx_ins[tx_in_index as usize];
 
@@ -346,8 +339,8 @@ fn find_unspent_tx_out(
     new_unspent_tx_outs: &[UnspentTxOut],
 ) -> Option<UnspentTxOut> {
     new_unspent_tx_outs
-        .to_owned()
-        .into_iter()
+        .iter()
+        .cloned()
         .find(|new_tx_o| &new_tx_o.tx_out_id == transaction_id && &new_tx_o.tx_out_index == index)
 }
 

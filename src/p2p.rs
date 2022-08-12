@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::str::from_utf8;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::time::Duration;
+
 use std::{thread, thread::JoinHandle};
 
 use crate::message::{Message, MessageType};
@@ -162,7 +162,7 @@ impl Server {
         let mut tokens: Vec<Token> = vec![];
 
         for (t, _) in c.iter() {
-            tokens.push(t.clone());
+            tokens.push(*t);
         }
         for t in tokens.iter() {
             let (stream, ..) = c.get_mut(t).unwrap();

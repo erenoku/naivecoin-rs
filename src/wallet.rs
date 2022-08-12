@@ -1,6 +1,6 @@
 use log::error;
 use openssl::ec::EcPoint;
-use std::borrow::Borrow;
+
 use std::path::Path;
 use std::sync::RwLock;
 
@@ -24,15 +24,15 @@ impl Wallet {
     }
 
     pub fn get_private_key(&self) -> PrivateKey {
-        PrivateKey::read_file_pem(&Path::new(&self.signing_key_location)).unwrap()
+        PrivateKey::read_file_pem(Path::new(&self.signing_key_location)).unwrap()
     }
 
     pub fn generate_private_key(&self) -> PrivateKey {
         let path = Path::new(&self.signing_key_location);
 
-        if !path.metadata().is_ok() {
+        if path.metadata().is_err() {
             let key = KeyPair::generate();
-            key.private_key.write_file_pem(&path).unwrap();
+            key.private_key.write_file_pem(path).unwrap();
 
             println!(
                 "Wallet generated. public key: {}",
@@ -50,7 +50,7 @@ impl Wallet {
         self.get_private_key()
     }
 
-    pub fn get_balance(address: String, unspent_tx_outs: &Vec<UnspentTxOut>) -> u64 {
+    pub fn get_balance(address: String, unspent_tx_outs: &[UnspentTxOut]) -> u64 {
         unspent_tx_outs
             .iter()
             .filter(|u_tx_out| u_tx_out.address == address)
@@ -104,12 +104,7 @@ impl Wallet {
         unspent_tx_outs: Vec<UnspentTxOut>,
         pool: &TransactionPool,
     ) -> Vec<UnspentTxOut> {
-        let tx_ins: Vec<TxIn> = pool
-            .0
-            .iter()
-            .map(|tx| tx.tx_ins.clone())
-            .flatten()
-            .collect();
+        let tx_ins: Vec<TxIn> = pool.0.iter().flat_map(|tx| tx.tx_ins.clone()).collect();
 
         let mut removable: Vec<UnspentTxOut> = Vec::new();
         for u_tx_out in unspent_tx_outs.clone() {
@@ -167,7 +162,7 @@ impl Wallet {
             .enumerate()
             .map(|(index, tx_in)| {
                 let mut t = tx_in.clone();
-                t.signature = TxIn::sign(tx.clone(), index as u64, &private_key, &unspent_tx_outs);
+                t.signature = TxIn::sign(tx.clone(), index as u64, private_key, &unspent_tx_outs);
                 t
             })
             .collect();
@@ -182,7 +177,7 @@ mod test {
     use std::fs;
     use std::fs::File;
     use std::io::{self, BufRead};
-    use tempfile;
+    
 
     #[test]
     fn test_gen_key() {

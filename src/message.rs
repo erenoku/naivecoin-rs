@@ -1,4 +1,4 @@
-use log::{error, info, warn};
+use log::{warn};
 use mio::{net::TcpStream, Token};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -84,7 +84,7 @@ impl Message {
     pub fn handle_transaction_pool_response(&self) {
         let received_transactions: Vec<Transaction> =
             serde_json::from_str(&self.content).expect("error parsing json");
-        if received_transactions.len() == 0 {
+        if received_transactions.is_empty() {
             warn!("received_transactions.len() == 0");
             return;
         }

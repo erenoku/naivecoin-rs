@@ -141,7 +141,7 @@ mod tests {
                 block.clone(),
                 block.clone(),
                 block.clone(),
-                block.clone(),
+                block,
             ],
         };
 
