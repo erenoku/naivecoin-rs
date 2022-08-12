@@ -54,7 +54,7 @@ curl localhost:8001/balance
 ## TODO
 
 - [ ] Add spec tests
-- [ ] Send length delimited json instead of trying to parse every incoming packet
+- [x] Send delimited json instead of trying to parse every incoming packet
 - [x] Impement [transaction relaying](https://lhartikk.github.io/jekyll/update/2017/07/10/chapter5.html)
 
 ## References
