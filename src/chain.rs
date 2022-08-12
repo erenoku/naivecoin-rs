@@ -1,10 +1,7 @@
-use std::rc::Rc;
-
-use log::info;
-
 use crate::block::{Block, UNSPENT_TX_OUTS};
 use crate::difficulter::Difficulter;
 use crate::transaction::{Transaction, UnspentTxOut};
+use crate::TRANSACTIN_POOL;
 
 pub struct BlockChain {
     pub blocks: Vec<Block>,
@@ -22,6 +19,7 @@ impl BlockChain {
             {
                 self.blocks.push(new);
                 *unspent_tx_outs = ret_val;
+                TRANSACTIN_POOL.write().unwrap().update(&unspent_tx_outs);
             }
         }
     }
@@ -29,13 +27,15 @@ impl BlockChain {
     /// get new_blocks and if valid completely change the self.blocks
     pub fn replace(&mut self, new_blocks: Vec<Block>) {
         let new_chain = BlockChain { blocks: new_blocks };
+        let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
 
         if let Some(new_unspent_tx_outs) = new_chain.is_valid() {
             if Difficulter::get_accumulated_difficulty(&new_chain)
                 > Difficulter::get_accumulated_difficulty(self)
             {
                 self.blocks = new_chain.blocks;
-                *UNSPENT_TX_OUTS.write().unwrap() = new_unspent_tx_outs
+                *unspent_tx_outs = new_unspent_tx_outs;
+                TRANSACTIN_POOL.write().unwrap().update(&unspent_tx_outs);
             }
         }
         // TODO: return error
