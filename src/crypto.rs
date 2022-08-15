@@ -5,7 +5,7 @@ use openssl::{
     ecdsa::EcdsaSig,
     error::ErrorStack,
     nid::Nid,
-    pkey::{Private},
+    pkey::Private,
 };
 use std::{
     error::Error,
@@ -136,6 +136,11 @@ mod tests {
         let pair = KeyPair::generate();
 
         let encoded_pub_key = KeyPair::public_key_to_hex(&pair.private_key.to_public_key());
-        let _decoded_pub_key = KeyPair::public_key_from_hex(&encoded_pub_key).unwrap();
+        let decoded_pub_key = KeyPair::public_key_from_hex(&encoded_pub_key).unwrap();
+
+        assert_eq!(
+            encoded_pub_key,
+            KeyPair::public_key_to_hex(&decoded_pub_key)
+        );
     }
 }

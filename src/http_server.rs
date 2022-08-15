@@ -117,6 +117,11 @@ fn get_balance() -> rouille::Response {
     rouille::Response::text(balance.to_string())
 }
 
+fn get_public_key() -> rouille::Response {
+    let public_key = Wallet::global().read().unwrap().get_public_key();
+    rouille::Response::text(KeyPair::public_key_to_hex(&public_key))
+}
+
 fn mine_block() -> rouille::Response {
     let next_block = Block::generate_next();
     BLOCK_CHAIN.write().unwrap().add(next_block);
@@ -136,6 +141,10 @@ pub fn init_http_server(http_port: String) {
 
          (GET) (/blocks) => {
             blocks()
+         },
+
+         (GET) (/addr) => {
+            get_public_key()
          },
 
          (GET) (/balance) => {

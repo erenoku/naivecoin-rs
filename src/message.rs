@@ -125,6 +125,9 @@ mod tests {
         }
         .serialize();
 
-        assert!(serialized == r##"{"m_type":"QueryAll","content":""}"##);
+        assert_eq!(
+            serialized,
+            r#"{"m_type":"QueryAll","content":""}"#.to_owned() + "\0"
+        );
     }
 }

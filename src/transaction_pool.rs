@@ -34,7 +34,7 @@ impl TransactionPool {
 
     pub fn update(&mut self, unspent_tx_outs: &Vec<UnspentTxOut>) {
         info!("try update pool");
-        let mut r_indexes = vec![];
+        let mut r_indexes: Vec<usize> = vec![];
 
         info!("unspent tx outs: {:?}", unspent_tx_outs);
         info!("pool: {:?}", self.0);
@@ -47,11 +47,12 @@ impl TransactionPool {
                 }) {
                     info!("found some invalid");
                     r_indexes.push(i);
+                    break;
                 }
             }
         }
 
-        for i in r_indexes {
+        for i in r_indexes.into_iter().rev() {
             info!("removing {:?} from transaction pool", self.0[i]);
             self.0.remove(i);
         }

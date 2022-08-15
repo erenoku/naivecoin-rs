@@ -105,17 +105,20 @@ mod tests {
     fn test_hash_matches_difficulty() {
         assert!(Validator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &4
+            &4,
+            false
         ));
 
         assert!(Validator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &0
+            &0,
+            false
         ));
 
         assert!(!Validator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
-            &5
+            &5,
+            false
         ));
     }
 }
