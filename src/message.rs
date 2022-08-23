@@ -1,4 +1,4 @@
-use log::{warn};
+use log::warn;
 use mio::{net::TcpStream, Token};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -9,7 +9,7 @@ use crate::{
     TRANSACTIN_POOL,
 };
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub enum MessageType {
     QueryLatest,
     QueryAll,
@@ -18,7 +18,7 @@ pub enum MessageType {
     ResponseTransactionPool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Message {
     pub m_type: MessageType,
     pub content: String,

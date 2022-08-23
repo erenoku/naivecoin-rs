@@ -18,9 +18,11 @@ use crate::p2p_handler::P2PHandler;
 
 const SERVER: Token = Token(0);
 
+pub type ConnectionState = (TcpStream, Vec<u8>, u32);
+
 static POLL: Lazy<RwLock<Poll>> = Lazy::new(|| RwLock::new(Poll::new().unwrap()));
 static UNIQUE_TOKEN: Lazy<RwLock<Token>> = Lazy::new(|| RwLock::new(Token(SERVER.0 + 1)));
-static CONNECTIONS: Lazy<RwLock<HashMap<Token, (TcpStream, Vec<u8>, u32)>>> =
+static CONNECTIONS: Lazy<RwLock<HashMap<Token, ConnectionState>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));
 
 pub struct Server {

@@ -93,14 +93,14 @@ async fn get_balance(client: &Client, port: &str) -> u32 {
 // TODO: get these from main crate
 // this will be done by seperating main.rs to lib.rs and main.rs
 // this way integration tests will be able to import necessery structs
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TxIn {
     pub tx_out_id: String,
     pub tx_out_index: u64,
     pub signature: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TxOut {
     pub address: String,
     pub amount: u64,
@@ -151,8 +151,7 @@ async fn mine_transaction(client: &Client, port: &str, addr: &String, amount: u6
         .post(format!("http://localhost:{}/mineTransaction", port))
         .body(format!(
             "{{\"address\":\"{}\", \"amount\":{}}}",
-            addr,
-            amount.to_string()
+            addr, amount
         ))
         .send()
         .await
@@ -164,8 +163,7 @@ async fn send_transaction(client: &Client, port: &str, addr: &String, amount: u6
         .post(format!("http://localhost:{}/sendTransaction", port))
         .body(format!(
             "{{\"address\":\"{}\", \"amount\":{}}}",
-            addr,
-            amount.to_string()
+            addr, amount
         ))
         .send()
         .await

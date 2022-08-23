@@ -11,7 +11,7 @@ impl TransactionPool {
         Self(vec![])
     }
 
-    pub fn add(&mut self, tx: Transaction, unspent_tx_outs: &Vec<UnspentTxOut>) -> bool {
+    pub fn add(&mut self, tx: Transaction, unspent_tx_outs: &[UnspentTxOut]) -> bool {
         info!("trying to push tx: {:?} to pool", tx);
 
         if !tx.validate(unspent_tx_outs) {

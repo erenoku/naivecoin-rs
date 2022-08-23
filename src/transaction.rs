@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use crate::crypto::{KeyPair, PrivateKey, Signature};
 use crate::COINBASE_AMOUNT;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnspentTxOut {
     pub tx_out_id: String,
     pub tx_out_index: u64,
@@ -13,20 +13,20 @@ pub struct UnspentTxOut {
     pub amount: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TxIn {
     pub tx_out_id: String,
     pub tx_out_index: u64,
     pub signature: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TxOut {
     pub address: String,
     pub amount: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Transaction {
     pub id: String,
 
@@ -68,7 +68,7 @@ impl Transaction {
         format!("{:x}", hasher.finalize())
     }
 
-    pub fn validate(&self, new_unspent_tx_outs: &Vec<UnspentTxOut>) -> bool {
+    pub fn validate(&self, new_unspent_tx_outs: &[UnspentTxOut]) -> bool {
         if self.get_transaction_id() != self.id {
             warn!("invalid tx id: {}", self.id);
             return false;
@@ -109,8 +109,8 @@ impl Transaction {
     }
 
     pub fn validate_block_transactions(
-        new_transactions: &Vec<Self>,
-        new_unspent_tx_outs: &Vec<UnspentTxOut>,
+        new_transactions: &[Self],
+        new_unspent_tx_outs: &[UnspentTxOut],
         block_index: &u64,
     ) -> bool {
         let coinbase_tx = &new_transactions[0];
@@ -119,10 +119,7 @@ impl Transaction {
             return false;
         }
 
-        let tx_ins: Vec<&TxIn> = new_transactions
-            .iter()
-            .flat_map(|t| &t.tx_ins)
-            .collect();
+        let tx_ins: Vec<&TxIn> = new_transactions.iter().flat_map(|t| &t.tx_ins).collect();
 
         if TxIn::has_duplicates(tx_ins) {
             warn!("txins have duplicates");
@@ -180,7 +177,7 @@ impl Transaction {
     }
 
     pub fn update_unspent_tx_out(
-        new_transactions: &Vec<Self>,
+        new_transactions: &[Self],
         a_unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> Vec<UnspentTxOut> {
         let new_unspent_tx_outs: Vec<UnspentTxOut> = new_transactions
@@ -226,12 +223,11 @@ impl Transaction {
     }
 
     pub fn process_transaction(
-        new_transactions: &Vec<Self>,
+        new_transactions: &[Self],
         new_unspent_tx_outs: &Vec<UnspentTxOut>,
         block_index: &u64,
     ) -> Option<Vec<UnspentTxOut>> {
-        if !Self::validate_block_transactions(new_transactions, new_unspent_tx_outs, block_index)
-        {
+        if !Self::validate_block_transactions(new_transactions, new_unspent_tx_outs, block_index) {
             warn!("invalid block transaction");
             return None;
         }

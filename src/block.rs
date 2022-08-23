@@ -18,7 +18,7 @@ use crate::{
 
 pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Block {
     pub index: u32,
     pub previous_hash: String,
@@ -55,7 +55,7 @@ impl Block {
         index: &u32,
         previous_hash: &str,
         timestamp: &u64,
-        data: &Vec<Transaction>,
+        data: &[Transaction],
         difficulty: &u32,
         nonce: &u32,
     ) -> String {

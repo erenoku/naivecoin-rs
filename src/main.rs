@@ -56,11 +56,11 @@ struct Config {
 impl Config {
     pub fn from_env() -> Self {
         Config {
-            http_port: env::var("HTTP_PORT").unwrap_or(String::from("8000")),
-            p2p_port: env::var("P2P_PORT").unwrap_or(String::from("5000")),
+            http_port: env::var("HTTP_PORT").unwrap_or_else(|_| String::from("8000")),
+            p2p_port: env::var("P2P_PORT").unwrap_or_else(|_| String::from("5000")),
             initial_peers: env::var("INITIAL").unwrap_or_default(),
             key_location: env::var("KEY_LOC")
-                .unwrap_or(String::from("./node/wallet/private_key.pem")),
+                .unwrap_or_else(|_| String::from("./node/wallet/private_key.pem")),
         }
     }
 }
