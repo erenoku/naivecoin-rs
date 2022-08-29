@@ -3,6 +3,7 @@ use crate::difficulter::Difficulter;
 use crate::transaction::{Transaction, UnspentTxOut};
 use crate::TRANSACTIN_POOL;
 
+#[derive(Clone)]
 pub struct BlockChain {
     pub blocks: Vec<Block>,
 }
@@ -102,184 +103,92 @@ impl BlockChain {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_replace() {
-//         let mut current_chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: BlockChain::get_genesis().hash,
-//                     timestamp: BlockChain::get_genesis().timestamp + 1,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
+    #[test]
+    fn test_is_valid() {
+        let mut chain = BlockChain {
+            blocks: vec![BlockChain::get_genesis()],
+        };
 
-//         let next_blocks = vec![
-//             BlockChain::get_genesis(),
-//             Block {
-//                 index: 1,
-//                 previous_hash: BlockChain::get_genesis().hash,
-//                 timestamp: BlockChain::get_genesis().timestamp + 1,
-//                 data: vec![],
-//                 hash: String::from(
-//                     "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
-//                 ),
-//                 difficulty: 0,
-//                 nonce: 0,
-//             },
-//             Block {
-//                 index: 2,
-//                 previous_hash: String::from(
-//                     "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
-//                 ),
-//                 timestamp: BlockChain::get_genesis().timestamp + 2,
-//                 data: vec![],
-//                 hash: String::from(
-//                     "13543d261672ae2f0cb9f54ded0b5eca74f9d3bf85a80fae21d40e4362ffbb40",
-//                 ),
-//                 difficulty: 0,
-//                 nonce: 0,
-//             },
-//         ];
+        let mut second = Block {
+            index: 1,
+            previous_hash: BlockChain::get_genesis().hash,
+            timestamp: BlockChain::get_genesis().timestamp + 1,
+            data: vec![],
+            hash: String::new(),
+            difficulty: 0,
+            nonce: 0,
+        };
+        second.hash = second.calculate_hash();
+        // Don't add new blocks like this there is a dedicated function for this called add
+        chain.blocks.push(second.clone());
+        assert!(chain.is_valid().is_some());
 
-//         current_chain.replace(next_blocks);
+        let mut third = Block {
+            index: 2,
+            previous_hash: BlockChain::get_genesis().hash,
+            timestamp: BlockChain::get_genesis().timestamp + 2,
+            data: vec![],
+            hash: String::new(),
+            difficulty: 0,
+            nonce: 0,
+        };
+        third.hash = third.calculate_hash();
+        let mut c1 = chain.clone();
+        c1.blocks.push(third);
+        assert!(c1.is_valid().is_none());
 
-//         assert_eq!(current_chain.blocks.len(), 3)
-//     }
+        let mut forth = Block {
+            index: 2,
+            previous_hash: second.hash,
+            timestamp: BlockChain::get_genesis().timestamp - 300,
+            data: vec![],
+            hash: String::new(),
+            difficulty: 0,
+            nonce: 0,
+        };
+        forth.hash = forth.calculate_hash();
+        chain.blocks.push(forth);
+        assert!(chain.is_valid().is_none());
+    }
 
-//     #[test]
-//     fn test_add() {
-//         let mut chain = BlockChain {
-//             blocks: vec![BlockChain::get_genesis()],
-//         };
+    #[test]
+    fn test_replace() {
+        let mut original = BlockChain {
+            blocks: vec![
+                BlockChain::get_genesis(),
+                Block {
+                    index: 1,
+                    previous_hash: BlockChain::get_genesis().hash,
+                    timestamp: BlockChain::get_genesis().timestamp + 1,
+                    data: vec![],
+                    hash: String::new(),
+                    difficulty: 0,
+                    nonce: 0,
+                },
+            ],
+        };
 
-//         let next_block = Block {
-//             index: 1,
-//             previous_hash: BlockChain::get_genesis().hash,
-//             timestamp: BlockChain::get_genesis().timestamp + 1,
-//             data: vec![],
-//             hash: String::from("5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e"),
-//             difficulty: 0,
-//             nonce: 0,
-//         };
+        original.blocks[1].hash = original.blocks[1].calculate_hash();
 
-//         chain.add(next_block.clone());
+        let mut new_block = Block {
+            index: 2,
+            previous_hash: original.blocks[1].hash.clone(),
+            timestamp: BlockChain::get_genesis().timestamp + 2,
+            data: vec![],
+            hash: String::new(),
+            difficulty: 0,
+            nonce: 0,
+        };
+        new_block.hash = new_block.calculate_hash();
+        let mut new_chain = original.clone();
+        new_chain.add(new_block);
 
-//         assert_eq!(chain.blocks.len(), 2);
-
-//         chain.add(next_block.clone());
-
-//         assert_eq!(chain.blocks.len(), 2);
-//     }
-
-//     #[test]
-//     fn test_is_valid() {
-//         let mut chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: BlockChain::get_genesis().hash,
-//                     timestamp: BlockChain::get_genesis().timestamp + 1,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "5cc9096cfe838a7ea0c5d986c5b6072eac518858938033295381a45daa72cb6e",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
-
-//         assert!(chain.is_valid());
-
-//         chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: String::from(
-//                         "e9e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
-//                     ),
-//                     timestamp: BlockChain::get_genesis().timestamp + 1,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
-
-//         assert!(!chain.is_valid());
-
-//         chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: BlockChain::get_genesis().hash,
-//                     timestamp: BlockChain::get_genesis().timestamp - 1,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
-
-//         assert!(!chain.is_valid());
-
-//         chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: BlockChain::get_genesis().hash,
-//                     timestamp: BlockChain::get_genesis().timestamp,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "d7e7efcbda3fb07db3aa416ceaefa830f3a5e19e77f5231d16de76c32abc39b2",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
-
-//         assert!(!chain.is_valid());
-
-//         chain = BlockChain {
-//             blocks: vec![
-//                 BlockChain::get_genesis(),
-//                 Block {
-//                     index: 1,
-//                     previous_hash: BlockChain::get_genesis().hash,
-//                     timestamp: BlockChain::get_genesis().timestamp + 1,
-//                     data: vec![],
-//                     hash: String::from(
-//                         "d7e7efcbda3fb07db3aa416ceaefa831f3a5e19e77f5231d16de76c32abc39b2",
-//                     ),
-//                     difficulty: 0,
-//                     nonce: 0,
-//                 },
-//             ],
-//         };
-
-//         assert!(!chain.is_valid());
-//     }
-// }
+        original.replace(new_chain.blocks);
+        assert_eq!(original.blocks.len(), 3);
+        assert_eq!(original.blocks[2].index, 2);
+    }
+}

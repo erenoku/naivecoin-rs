@@ -73,7 +73,7 @@ impl Server {
 
                                 info!("Accepted connection from: {}", address);
 
-                                let token = Self::next(UNIQUE_TOKEN.write().unwrap().borrow_mut());
+                                let token = Self::next(&mut UNIQUE_TOKEN.write().unwrap());
                                 POLL.read()
                                     .unwrap()
                                     .registry()

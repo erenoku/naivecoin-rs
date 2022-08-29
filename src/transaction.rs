@@ -113,6 +113,9 @@ impl Transaction {
         new_unspent_tx_outs: &[UnspentTxOut],
         block_index: &u64,
     ) -> bool {
+        if new_transactions.len() == 0 {
+            return true;
+        }
         let coinbase_tx = &new_transactions[0];
         if !Self::validate_coinbase_tx(coinbase_tx, block_index) {
             warn!("invalid coinbase transaction: {:?}", coinbase_tx);
