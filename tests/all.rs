@@ -1,3 +1,4 @@
+use defer_lite::defer;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -185,6 +186,15 @@ async fn get_pool(client: &Client, port: &str) -> Vec<Transaction> {
 async fn test_all() {
     let instances = start_instances();
 
+    defer! {
+        println!("defering");
+        for mut instance in instances {
+            instance.kill().expect("could not kill child process");
+            let status = instance.wait().unwrap();
+            assert!(status.code().is_none() || status.code() == Some(0));
+        }
+    }
+
     std::thread::sleep(Duration::from_secs(1));
 
     let client = Client::new();
@@ -245,10 +255,4 @@ async fn test_all() {
     assert_eq!(pool0.len(), 0);
     assert_eq!(pool0, pool1);
     assert_eq!(pool1, pool2);
-
-    for mut instance in instances {
-        instance.kill().expect("could not kill child process");
-        let status = instance.wait().unwrap();
-        assert!(status.code().is_none() || status.code() == Some(0));
-    }
 }

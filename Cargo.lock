@@ -117,6 +117,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "defer-lite"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6a1ef0750c0fcdb9bd00e7829fcad58e9a0a2ab7078b57c39743b973f3878ce"
+
+[[package]]
 name = "digest"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -497,6 +503,7 @@ dependencies = [
 name = "naivecoin-rs"
 version = "0.1.0"
 dependencies = [
+ "defer-lite",
  "env_logger",
  "hex",
  "log",
