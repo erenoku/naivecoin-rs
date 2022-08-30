@@ -4,7 +4,6 @@ use mio::net::{TcpListener, TcpStream};
 use mio::{Events, Interest, Poll, Registry, Token};
 use once_cell::sync::Lazy;
 use std::borrow::BorrowMut;
-use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::str::from_utf8;
@@ -22,8 +21,7 @@ pub type ConnectionState = (TcpStream, Vec<u8>, u32);
 
 static POLL: Lazy<RwLock<Poll>> = Lazy::new(|| RwLock::new(Poll::new().unwrap()));
 static UNIQUE_TOKEN: Lazy<RwLock<Token>> = Lazy::new(|| RwLock::new(Token(SERVER.0 + 1)));
-static CONNECTIONS: Lazy<RwLock<HashMap<Token, ConnectionState>>> =
-    Lazy::new(|| RwLock::new(HashMap::new()));
+static CONNECTIONS: Lazy<RwLock<Vec<ConnectionState>>> = Lazy::new(|| RwLock::new(vec![]));
 
 pub struct Server {
     pub addr: SocketAddr,
@@ -85,14 +83,15 @@ impl Server {
                                     .unwrap();
 
                                 let mut c = CONNECTIONS.write().unwrap();
-                                c.insert(token, (connection, vec![0; 4096], 0));
+                                c.insert(token.0 - 1, (connection, vec![0; 4096], 0));
                                 drop(c);
                             }
                         }
                         token => {
+                            let token = Token(token.0 - 1);
                             let mut c = CONNECTIONS.write().unwrap();
                             // Maybe received an event for a TCP connection.
-                            let done = if let Some(connection) = c.get_mut(&token) {
+                            let done = if let Some(connection) = c.get_mut(token.0) {
                                 let (connection, buf, bytes_read) = connection;
                                 Self::handle_connection_event(
                                     POLL.write().unwrap().registry(),
@@ -107,11 +106,12 @@ impl Server {
                                 false
                             };
                             if done {
-                                if let Some((mut connection, ..)) = c.remove(&token) {
+                                // TODO: find a way to remove the connection from connections vector
+                                if let Some((connection, ..)) = c.get_mut(token.0) {
                                     POLL.write()
                                         .unwrap()
                                         .registry()
-                                        .deregister(&mut connection)
+                                        .deregister(connection)
                                         .unwrap();
                                 }
                             }
@@ -139,7 +139,7 @@ impl Server {
         CONNECTIONS
             .write()
             .unwrap()
-            .insert(token, (connection, vec![0; 4096], 0));
+            .insert(token.0 - 1, (connection, vec![0; 4096], 0));
 
         token
     }
@@ -153,7 +153,7 @@ impl Server {
             stream.write(buf)
         } else {
             let mut c = CONNECTIONS.write().unwrap();
-            let (stream, ..) = c.get_mut(t).unwrap();
+            let (stream, ..) = c.get_mut(t.0).unwrap();
             stream.write(buf)
         }
     }
@@ -161,12 +161,7 @@ impl Server {
     pub fn broadcast(buf: &[u8]) {
         let mut c = CONNECTIONS.write().unwrap();
 
-        let mut tokens: Vec<Token> = vec![];
-
-        for (t, _) in c.iter() {
-            tokens.push(*t);
-        }
-        for t in tokens.iter() {
+        for t in 0..c.len() {
             let (stream, ..) = c.get_mut(t).unwrap();
             stream.write_all(buf).unwrap();
         }
