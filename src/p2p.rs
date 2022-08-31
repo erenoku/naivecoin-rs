@@ -175,22 +175,23 @@ impl Server {
         bytes_read: &mut u32,
         event: &Event,
     ) -> io::Result<bool> {
-        let query_chain_msg = Message {
-            m_type: MessageType::QueryLatest,
-            content: String::new(),
-        }
-        .serialize();
-
-        let query_transaction_msg = Message {
-            m_type: MessageType::QueryTransactionPool,
-            content: String::new(),
-        }
-        .serialize();
-
-        let chain_data = query_chain_msg.as_bytes();
-        let transaction_data = query_transaction_msg.as_bytes();
+      
 
         if event.is_writable() {
+            let query_chain_msg = Message {
+                m_type: MessageType::QueryLatest,
+                content: String::new(),
+            }
+            .serialize();
+
+            let query_transaction_msg = Message {
+                m_type: MessageType::QueryTransactionPool,
+                content: String::new(),
+            }
+            .serialize();
+
+            let chain_data = query_chain_msg.as_bytes();
+            let transaction_data = query_transaction_msg.as_bytes();
             // We can (maybe) write to the connection.
             match Self::send_to_peer(&event.token(), chain_data, Some(connection)) {
                 // We want to write the entire `DATA` buffer in a single go. If we
