@@ -113,7 +113,7 @@ impl Transaction {
         new_unspent_tx_outs: &[UnspentTxOut],
         block_index: &u64,
     ) -> bool {
-        if new_transactions.len() == 0 {
+        if new_transactions.is_empty() {
             return true;
         }
         let coinbase_tx = &new_transactions[0];

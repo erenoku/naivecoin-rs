@@ -6,9 +6,15 @@ use crate::transaction::{Transaction, TxIn, UnspentTxOut};
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TransactionPool(pub Vec<Transaction>);
 
+impl Default for TransactionPool {
+    fn default() -> Self {
+        Self(vec![])
+    }
+}
+
 impl TransactionPool {
     pub fn new() -> Self {
-        Self(vec![])
+        Default::default()
     }
 
     pub fn add(&mut self, tx: Transaction, unspent_tx_outs: &[UnspentTxOut]) -> bool {
