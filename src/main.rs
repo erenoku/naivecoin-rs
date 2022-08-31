@@ -1,47 +1,15 @@
+mod http_server;
+
 use log::{error, info};
-use once_cell::sync::{Lazy, OnceCell};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::sync::RwLock;
 use std::thread;
-use transaction_pool::TransactionPool;
 
-use crate::block::Block;
-use crate::wallet::Wallet;
-use chain::BlockChain;
 use http_server::init_http_server;
-use p2p::Server;
-
-// TODO: use traits for p2p_handler, validator and difficulter
-mod block;
-mod chain;
-mod crypto;
-mod difficulter;
-mod http_server;
-mod message;
-mod p2p;
-mod p2p_handler;
-mod transaction;
-mod transaction_pool;
-mod validator;
-mod wallet;
-
-static BLOCK_CHAIN: Lazy<RwLock<BlockChain>> = Lazy::new(|| {
-    RwLock::new(BlockChain {
-        blocks: vec![BlockChain::get_genesis()],
-    })
-});
-
-static TRANSACTIN_POOL: Lazy<RwLock<TransactionPool>> =
-    Lazy::new(|| RwLock::new(TransactionPool::new()));
-
-static WALLET: OnceCell<RwLock<Wallet>> = OnceCell::new();
-
-// in seconds
-const BLOCK_GENERATION_INTERVAL: u32 = 10;
-const DIFFICULTY_ADJUSTMENT_INTERVAL: u32 = 10;
-
-const COINBASE_AMOUNT: u64 = 50;
+use naivecoin_rs::p2p::Server;
+use naivecoin_rs::wallet::Wallet;
+use naivecoin_rs::WALLET;
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 struct Config {

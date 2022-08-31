@@ -1,11 +1,13 @@
 use defer_lite::defer;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::{
     process::{Child, Command, Stdio},
     time::Duration,
 };
 use tempfile::NamedTempFile;
+
+use naivecoin_rs::block::Block;
+use naivecoin_rs::transaction::Transaction;
 
 const HTTP_PORT_0: &str = "8000";
 const HTTP_PORT_1: &str = "8001";
@@ -89,41 +91,6 @@ async fn get_balance(client: &Client, port: &str) -> u32 {
     let text = req.text().await.unwrap();
 
     text.parse().unwrap()
-}
-
-// TODO: get these from main crate
-// this will be done by seperating main.rs to lib.rs and main.rs
-// this way integration tests will be able to import necessery structs
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TxIn {
-    pub tx_out_id: String,
-    pub tx_out_index: u64,
-    pub signature: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TxOut {
-    pub address: String,
-    pub amount: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Transaction {
-    pub id: String,
-
-    pub tx_ins: Vec<TxIn>,
-    pub tx_outs: Vec<TxOut>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Block {
-    pub index: u32,
-    pub previous_hash: String,
-    pub timestamp: u64,
-    pub data: Vec<Transaction>,
-    pub hash: String,
-    pub nonce: u32,
-    pub difficulty: u32,
 }
 
 async fn get_blocks(client: &Client, port: &str) -> Vec<Block> {

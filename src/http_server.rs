@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use std::io::Read;
 
-use crate::block::{Block, UNSPENT_TX_OUTS};
-use crate::crypto::KeyPair;
-use crate::message::{Message, MessageType};
-use crate::wallet::Wallet;
-use crate::BLOCK_CHAIN;
-use crate::{p2p, TRANSACTIN_POOL};
+use naivecoin_rs::block::{Block, UNSPENT_TX_OUTS};
+use naivecoin_rs::crypto::KeyPair;
+use naivecoin_rs::message::{Message, MessageType};
+use naivecoin_rs::wallet::Wallet;
+use naivecoin_rs::BLOCK_CHAIN;
+use naivecoin_rs::{p2p, TRANSACTIN_POOL};
 
 fn blocks() -> rouille::Response {
     rouille::Response::json(&BLOCK_CHAIN.read().unwrap().blocks)
