@@ -1,4 +1,5 @@
 use crate::block::{Block, UNSPENT_TX_OUTS};
+use crate::difficulter::simple::SimpleDifficulter;
 use crate::difficulter::Difficulter;
 use crate::transaction::{Transaction, UnspentTxOut};
 use crate::TRANSACTIN_POOL;
@@ -31,8 +32,8 @@ impl BlockChain {
         let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
 
         if let Some(new_unspent_tx_outs) = new_chain.is_valid() {
-            if Difficulter::get_accumulated_difficulty(&new_chain)
-                > Difficulter::get_accumulated_difficulty(self)
+            if SimpleDifficulter::get_accumulated_difficulty(&new_chain)
+                > SimpleDifficulter::get_accumulated_difficulty(self)
             {
                 self.blocks = new_chain.blocks;
                 *unspent_tx_outs = new_unspent_tx_outs;

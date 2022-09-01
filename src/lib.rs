@@ -1,4 +1,3 @@
-// TODO: use traits for p2p_handler, validator and difficulter
 pub mod block;
 pub mod chain;
 pub mod crypto;

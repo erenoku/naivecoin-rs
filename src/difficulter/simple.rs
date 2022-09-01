@@ -1,14 +1,15 @@
-// TODO: find a better filename
 use log::info;
 
 use crate::block::Block;
 use crate::chain::BlockChain;
 use crate::{BLOCK_GENERATION_INTERVAL, DIFFICULTY_ADJUSTMENT_INTERVAL};
 
-pub struct Difficulter;
+use super::Difficulter;
 
-impl Difficulter {
-    pub fn get_accumulated_difficulty(chain: &BlockChain) -> u64 {
+pub struct SimpleDifficulter;
+
+impl Difficulter for SimpleDifficulter {
+    fn get_accumulated_difficulty(chain: &BlockChain) -> u64 {
         chain
             .blocks
             .iter()
@@ -16,7 +17,7 @@ impl Difficulter {
             .sum()
     }
 
-    pub fn get_adjusted_difficulty(chain: &BlockChain, latest_block: &Block) -> u32 {
+    fn get_adjusted_difficulty(chain: &BlockChain, latest_block: &Block) -> u32 {
         let prev_adjustment_block: &Block =
             &chain.blocks[chain.blocks.len() - DIFFICULTY_ADJUSTMENT_INTERVAL as usize];
         let time_expected = (BLOCK_GENERATION_INTERVAL * DIFFICULTY_ADJUSTMENT_INTERVAL) as u64;
@@ -39,10 +40,10 @@ impl Difficulter {
         }
     }
 
-    pub fn get_difficulty(chain: &BlockChain) -> u32 {
+    fn get_difficulty(chain: &BlockChain) -> u32 {
         if let Some(latest) = chain.get_latest() {
             if latest.index % DIFFICULTY_ADJUSTMENT_INTERVAL == 0 && latest.index != 0 {
-                return Difficulter::get_adjusted_difficulty(chain, &latest);
+                return SimpleDifficulter::get_adjusted_difficulty(chain, &latest);
             }
             latest.difficulty
         } else {
@@ -83,7 +84,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(Difficulter::get_difficulty(&chain), 1);
+        assert_eq!(SimpleDifficulter::get_difficulty(&chain), 1);
 
         block = Block {
             index: 10,
@@ -110,7 +111,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(Difficulter::get_difficulty(&chain), 0);
+        assert_eq!(SimpleDifficulter::get_difficulty(&chain), 0);
 
         block = Block {
             index: 10,
@@ -145,6 +146,6 @@ mod tests {
             ],
         };
 
-        assert_eq!(Difficulter::get_difficulty(&chain), 4);
+        assert_eq!(SimpleDifficulter::get_difficulty(&chain), 4);
     }
 }

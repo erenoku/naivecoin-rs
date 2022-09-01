@@ -1,22 +1,26 @@
 use log::error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{block::Block, chain::BlockChain, difficulter::Difficulter};
+use crate::{
+    block::Block,
+    chain::BlockChain,
+    difficulter::{simple::SimpleDifficulter, Difficulter},
+    validator::Validator,
+};
 
-pub struct Validator;
+pub struct PowValidator;
 
-impl Validator {
-    pub fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
-        prev_block.index + 1 == next_block.index
-            && prev_block.hash == next_block.previous_hash
-            && next_block.calculate_hash() == next_block.hash
-            && Self::has_valid_difficulty(next_block, chain)
-            && Self::hash_matches_difficulty(&next_block.hash, &next_block.difficulty, true)
-            && Self::is_valid_timestamp(next_block, prev_block)
+impl PowValidator {
+    pub fn has_valid_difficulty(block: &Block, chain: &BlockChain) -> bool {
+        let r = block.difficulty >= SimpleDifficulter::get_difficulty(chain);
+        if !r {
+            error!("block doesn't have valid difficulty")
+        }
+
+        r
     }
 
     fn is_valid_timestamp(next_block: &Block, prev_block: &Block) -> bool {
-        // TODO: timezone??
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -29,17 +33,19 @@ impl Validator {
 
         r
     }
+}
 
-    pub fn has_valid_difficulty(block: &Block, chain: &BlockChain) -> bool {
-        let r = block.difficulty >= Difficulter::get_difficulty(chain);
-        if !r {
-            error!("block doesn't have valid difficulty")
-        }
-
-        r
+impl Validator for PowValidator {
+    fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
+        prev_block.index + 1 == next_block.index
+            && prev_block.hash == next_block.previous_hash
+            && next_block.calculate_hash() == next_block.hash
+            && Self::has_valid_difficulty(next_block, chain)
+            && Self::hash_matches_difficulty(&next_block.hash, &next_block.difficulty, true)
+            && Self::is_valid_timestamp(next_block, prev_block)
     }
 
-    pub fn hash_matches_difficulty(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
+    fn hash_matches_difficulty(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
         let end = difficulty / 4 + 1;
         // end = 2
 
@@ -103,19 +109,19 @@ mod tests {
 
     #[test]
     fn test_hash_matches_difficulty() {
-        assert!(Validator::hash_matches_difficulty(
+        assert!(PowValidator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &4,
             false
         ));
 
-        assert!(Validator::hash_matches_difficulty(
+        assert!(PowValidator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &0,
             false
         ));
 
-        assert!(!Validator::hash_matches_difficulty(
+        assert!(!PowValidator::hash_matches_difficulty(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &5,
             false

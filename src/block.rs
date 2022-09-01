@@ -9,9 +9,9 @@ use std::{
 use crate::{
     chain::BlockChain,
     crypto::KeyPair,
-    difficulter::Difficulter,
+    difficulter::{simple::SimpleDifficulter, Difficulter},
     transaction::{Transaction, UnspentTxOut},
-    validator::Validator,
+    validator::{pow::PowValidator, Validator},
     wallet::Wallet,
     BLOCK_CHAIN, TRANSACTIN_POOL,
 };
@@ -44,7 +44,7 @@ impl Block {
 
     /// check if the next block is valid for the given previous block
     pub fn is_valid_next_block(next: &Block, prev: &Block, chain: &BlockChain) -> bool {
-        if Validator::is_valid(prev, next, chain) {
+        if PowValidator::is_valid(prev, next, chain) {
             return true;
         }
 
@@ -93,7 +93,7 @@ impl Block {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        let difficulty = Difficulter::get_difficulty(&BLOCK_CHAIN.read().unwrap());
+        let difficulty = SimpleDifficulter::get_difficulty(&BLOCK_CHAIN.read().unwrap());
 
         Block::find_block(
             next_index,
@@ -142,7 +142,7 @@ impl Block {
                 &nonce,
             );
 
-            if Validator::hash_matches_difficulty(&hash, &difficulty, false) {
+            if PowValidator::hash_matches_difficulty(&hash, &difficulty, false) {
                 return Self {
                     index,
                     previous_hash,
