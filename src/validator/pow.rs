@@ -1,19 +1,11 @@
 use log::error;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{block::Block, chain::BlockChain, validator::Validator};
 
 pub struct PowValidator;
 
-impl Validator for PowValidator {
-    fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
-        prev_block.index + 1 == next_block.index
-            && prev_block.hash == next_block.previous_hash
-            && next_block.calculate_hash() == next_block.hash
-            && Self::has_valid_difficulty(next_block, chain)
-            && Self::has_valid_hash(&next_block.hash, &next_block.difficulty, true)
-            && Self::is_valid_timestamp(next_block, prev_block)
-    }
-
+impl PowValidator {
     fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
         let end = difficulty / 4 + 1;
         // end = 2
@@ -67,6 +59,55 @@ impl Validator for PowValidator {
         }
 
         true
+    }
+}
+
+impl Validator for PowValidator {
+    fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
+        prev_block.index + 1 == next_block.index
+            && prev_block.hash == next_block.previous_hash
+            && next_block.calculate_hash() == next_block.hash
+            && Self::has_valid_difficulty(next_block, chain)
+            && Self::has_valid_hash(&next_block.hash, &next_block.difficulty, true)
+            && Self::is_valid_timestamp(next_block, prev_block)
+    }
+
+    fn find_block(
+        prev_block: &Block,
+        data: Vec<crate::transaction::Transaction>,
+        difficulty: u32,
+    ) -> Block {
+        let index = prev_block.index + 1;
+        let previous_hash = prev_block.hash.clone();
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut nonce = 0;
+        loop {
+            let hash = Block::calculate_hash_from_data(
+                &index,
+                &previous_hash,
+                &timestamp,
+                &data,
+                &difficulty,
+                &nonce,
+            );
+
+            if PowValidator::has_valid_hash(&hash, &difficulty, false) {
+                return Block {
+                    index,
+                    previous_hash,
+                    timestamp,
+                    data,
+                    hash,
+                    difficulty,
+                    nonce,
+                };
+            }
+            nonce += 1;
+        }
     }
 }
 

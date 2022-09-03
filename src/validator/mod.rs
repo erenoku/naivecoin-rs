@@ -7,10 +7,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::block::Block;
 use crate::chain::BlockChain;
 use crate::difficulter::{simple::SimpleDifficulter, Difficulter};
+use crate::transaction::Transaction;
 
 pub trait Validator {
     fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool;
-    fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool;
+    fn find_block(prev_block: &Block, data: Vec<Transaction>, difficulty: u32) -> Block;
+    // fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool;
 
     fn has_valid_difficulty(block: &Block, chain: &BlockChain) -> bool {
         let r = block.difficulty >= SimpleDifficulter::get_difficulty(chain);

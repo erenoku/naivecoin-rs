@@ -53,7 +53,7 @@ impl Block {
         false
     }
 
-    fn calculate_hash_from_data(
+    pub fn calculate_hash_from_data(
         index: &u32,
         previous_hash: &str,
         timestamp: &u64,
@@ -97,13 +97,7 @@ impl Block {
             .as_secs();
         let difficulty = SimpleDifficulter::get_difficulty(&BLOCK_CHAIN.read().unwrap());
 
-        Block::find_block(
-            next_index,
-            prev_block.hash,
-            next_timestamp,
-            block_data,
-            difficulty,
-        )
+        PowValidator::find_block(&prev_block, block_data, difficulty)
     }
 
     pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Option<Self> {
@@ -124,38 +118,5 @@ impl Block {
             return Some(Self::generate_next_raw(vec![coinbase_tx, tx], &chain));
         }
         None
-    }
-
-    pub fn find_block(
-        index: u32,
-        previous_hash: String,
-        timestamp: u64,
-        data: Vec<Transaction>,
-        difficulty: u32,
-    ) -> Self {
-        let mut nonce = 0;
-        loop {
-            let hash = Block::calculate_hash_from_data(
-                &index,
-                &previous_hash,
-                &timestamp,
-                &data,
-                &difficulty,
-                &nonce,
-            );
-
-            if PowValidator::has_valid_hash(&hash, &difficulty, false) {
-                return Self {
-                    index,
-                    previous_hash,
-                    timestamp,
-                    data,
-                    hash,
-                    difficulty,
-                    nonce,
-                };
-            }
-            nonce += 1;
-        }
     }
 }

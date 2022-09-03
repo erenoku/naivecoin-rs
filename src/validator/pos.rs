@@ -1,143 +1,140 @@
-// use bigint::U512;
-// use sha2::{Digest, Sha256};
-// use std::{
-//     ops::{Div, Mul},
-//     thread,
-//     time::{Duration, SystemTime, UNIX_EPOCH},
-// };
+use bigint::U512;
+use sha2::{Digest, Sha256};
+use std::{
+    ops::{Div, Mul},
+    thread,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
-// use crate::{
-//     block::{Block, UNSPENT_TX_OUTS},
-//     crypto::KeyPair,
-//     difficulter::Difficulter,
-//     wallet::Wallet,
-// };
+use crate::{
+    block::{Block, UNSPENT_TX_OUTS},
+    crypto::KeyPair,
+    difficulter::Difficulter,
+    wallet::Wallet,
+};
 
-// use super::Validator;
+use super::Validator;
 
-// pub struct PosValidator<D: Difficulter> {
-//     difficulter: D,
-// }
+pub struct PosValidator;
 
-// const ALLOW_WITHOUT_COIN_INDEX: u8 = 10;
+const ALLOW_WITHOUT_COIN_INDEX: u8 = 10;
 
-// /// does the calculation SHA256(prevhash + address + timestamp) <= 2^256 * balance / diff
-// /// Reference: https://blog.ethereum.org/2014/07/05/stake
-// fn check_special_hash(
-//     index: u32,
-//     prev_hash: &[u8],
-//     address: String,
-//     balance: u64,
-//     diff: u32,
-// ) -> bool {
-//     let mut balance = balance;
-//     if index <= ALLOW_WITHOUT_COIN_INDEX as u32 {
-//         balance += 1;
+/// does the calculation SHA256(prevhash + address + timestamp) <= 2^256 * balance / diff
+/// Reference: https://blog.ethereum.org/2014/07/05/stake
+fn check_special_hash(
+    index: u32,
+    prev_hash: &[u8],
+    address: String,
+    balance: u64,
+    diff: u32,
+) -> bool {
+    let mut balance = balance;
+    if index <= ALLOW_WITHOUT_COIN_INDEX as u32 {
+        balance += 1;
+    }
+
+    let mut hasher = Sha256::new();
+
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    hasher.update(prev_hash);
+    hasher.update(&address);
+    hasher.update(timestamp.to_be_bytes());
+
+    let hash: [u8; 32] = *hasher.finalize().as_ref();
+
+    let left_side = U512::from_big_endian(&hash);
+    let right_side: U512 = U512::from(2)
+        .pow(256.into())
+        .mul(balance.into())
+        .div(diff.into());
+
+    println!("left_side:  {}", left_side);
+    println!("right_side: {}", right_side);
+
+    left_side <= right_side
+}
+
+impl Validator for PosValidator {
+    fn is_valid(
+        prev_block: &crate::block::Block,
+        next_block: &crate::block::Block,
+        chain: &crate::chain::BlockChain,
+    ) -> bool {
+        let pub_key = &Wallet::global().read().unwrap().get_public_key();
+        let my_balance = Wallet::get_balance(
+            KeyPair::public_key_to_hex(&pub_key),
+            &UNSPENT_TX_OUTS.read().unwrap(),
+        );
+        check_special_hash(
+            next_block.index,
+            prev_block.hash.as_bytes(),
+            KeyPair::public_key_to_hex(pub_key),
+            my_balance,
+            next_block.difficulty,
+        ) && prev_block.index + 1 == next_block.index
+            && prev_block.hash == next_block.previous_hash
+            && next_block.calculate_hash() == next_block.hash
+            && Self::has_valid_difficulty(next_block, chain)
+            && Self::is_valid_timestamp(next_block, prev_block)
+    }
+
+    fn find_block(
+        prev_block: &crate::block::Block,
+        data: Vec<crate::transaction::Transaction>,
+        difficulty: u32,
+    ) -> Block {
+        let pub_key = &Wallet::global().read().unwrap().get_public_key();
+        let my_balance = Wallet::get_balance(
+            KeyPair::public_key_to_hex(&pub_key),
+            &UNSPENT_TX_OUTS.read().unwrap(),
+        );
+
+        loop {
+            let prev_timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            let hash = Block::calculate_hash_from_data(
+                &(prev_block.index + 1),
+                &prev_block.hash,
+                &prev_timestamp,
+                &data,
+                &difficulty,
+                &0,
+            );
+
+            if check_special_hash(
+                prev_block.index + 1,
+                prev_block.hash.as_bytes(),
+                KeyPair::public_key_to_hex(pub_key),
+                my_balance,
+                difficulty,
+            ) {
+                return Block {
+                    index: (prev_block.index + 1),
+                    previous_hash: prev_block.hash.clone(),
+                    timestamp: prev_timestamp,
+                    data,
+                    hash,
+                    difficulty,
+                    nonce: 0,
+                };
+            }
+        }
+    }
+}
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_check_special_hash() {
+//         todo!()
 //     }
-
-//     let mut hasher = Sha256::new();
-
-//     let timestamp = SystemTime::now()
-//         .duration_since(UNIX_EPOCH)
-//         .unwrap()
-//         .as_secs();
-
-//     hasher.update(prev_hash);
-//     hasher.update(&address);
-//     hasher.update(timestamp.to_be_bytes());
-
-//     let hash: [u8; 32] = *hasher.finalize().as_ref();
-
-//     let left_side = U512::from_big_endian(&hash);
-//     let right_side: U512 = U512::from(2)
-//         .pow(256.into())
-//         .mul(balance.into())
-//         .div(diff.into());
-
-//     println!("left_side:  {}", left_side);
-//     println!("right_side: {}", right_side);
-
-//     left_side <= right_side
 // }
-
-// impl<D: Difficulter> Validator<D> for PosValidator<D> {
-//     fn is_valid(
-//         &self,
-//         prev_block: &crate::block::Block,
-//         next_block: &crate::block::Block,
-//         chain: &crate::chain::BlockChain,
-//     ) -> bool {
-//         let pub_key = &Wallet::global().read().unwrap().get_public_key();
-//         let my_balance = Wallet::get_balance(
-//             KeyPair::public_key_to_hex(&pub_key),
-//             &UNSPENT_TX_OUTS.read().unwrap(),
-//         );
-//         check_special_hash(
-//             next_block.index,
-//             prev_block.hash.as_bytes(),
-//             KeyPair::public_key_to_hex(pub_key),
-//             my_balance,
-//             next_block.difficulty,
-//         ) && prev_block.index + 1 == next_block.index
-//             && prev_block.hash == next_block.previous_hash
-//             && next_block.calculate_hash() == next_block.hash
-//             && Self::has_valid_difficulty(next_block, chain, self.difficulter)
-//             && Self::is_valid_timestamp(next_block, prev_block)
-//     }
-
-//     fn find_blocks(
-//         prev_block: &crate::block::Block,
-//         data: Vec<crate::transaction::Transaction>,
-//         difficulty: u32,
-//     ) -> Block {
-//         let pub_key = &Wallet::global().read().unwrap().get_public_key();
-//         let my_balance = Wallet::get_balance(
-//             KeyPair::public_key_to_hex(&pub_key),
-//             &UNSPENT_TX_OUTS.read().unwrap(),
-//         );
-
-//         loop {
-//             let prev_timestamp = SystemTime::now()
-//                 .duration_since(UNIX_EPOCH)
-//                 .unwrap()
-//                 .as_secs();
-
-//             let hash = Block::calculate_hash_from_data(
-//                 &(prev_block.index + 1),
-//                 &prev_block.hash,
-//                 &prev_timestamp,
-//                 &data,
-//                 &difficulty,
-//                 &0,
-//             );
-
-//             if check_special_hash(
-//                 prev_block.index + 1,
-//                 prev_block.hash.as_bytes(),
-//                 KeyPair::public_key_to_hex(pub_key),
-//                 my_balance,
-//                 difficulty,
-//             ) {
-//                 return Block {
-//                     index: (prev_block.index + 1),
-//                     previous_hash: prev_block.hash.clone(),
-//                     timestamp: prev_timestamp,
-//                     data,
-//                     hash,
-//                     difficulty,
-//                     nonce: 0,
-//                 };
-//             }
-//         }
-//     }
-// }
-
-// // #[cfg(test)]
-// // mod tests {
-// //     use super::*;
-
-// //     #[test]
-// //     fn test_check_special_hash() {
-// //         todo!()
-// //     }
-// // }
