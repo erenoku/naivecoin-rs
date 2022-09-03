@@ -8,6 +8,8 @@ use super::Difficulter;
 
 pub struct SimpleDifficulter;
 
+const START_DIFFICULTY: u32 = 0;
+
 impl Difficulter for SimpleDifficulter {
     fn get_accumulated_difficulty(chain: &BlockChain) -> u64 {
         chain
@@ -47,7 +49,7 @@ impl Difficulter for SimpleDifficulter {
             }
             latest.difficulty
         } else {
-            0
+            START_DIFFICULTY
         }
     }
 }

@@ -11,9 +11,11 @@ use crate::{
     crypto::KeyPair,
     difficulter::{simple::SimpleDifficulter, Difficulter},
     transaction::{Transaction, UnspentTxOut},
+    // validator::{pos::PosValidator as PowValidator, Validator},
     validator::{pow::PowValidator, Validator},
     wallet::Wallet,
-    BLOCK_CHAIN, TRANSACTIN_POOL,
+    BLOCK_CHAIN,
+    TRANSACTIN_POOL,
 };
 
 pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
@@ -142,7 +144,7 @@ impl Block {
                 &nonce,
             );
 
-            if PowValidator::hash_matches_difficulty(&hash, &difficulty, false) {
+            if PowValidator::has_valid_hash(&hash, &difficulty, false) {
                 return Self {
                     index,
                     previous_hash,

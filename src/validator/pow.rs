@@ -1,39 +1,8 @@
 use log::error;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{
-    block::Block,
-    chain::BlockChain,
-    difficulter::{simple::SimpleDifficulter, Difficulter},
-    validator::Validator,
-};
+use crate::{block::Block, chain::BlockChain, validator::Validator};
 
 pub struct PowValidator;
-
-impl PowValidator {
-    pub fn has_valid_difficulty(block: &Block, chain: &BlockChain) -> bool {
-        let r = block.difficulty >= SimpleDifficulter::get_difficulty(chain);
-        if !r {
-            error!("block doesn't have valid difficulty")
-        }
-
-        r
-    }
-
-    fn is_valid_timestamp(next_block: &Block, prev_block: &Block) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        let r = prev_block.timestamp - 60 < next_block.timestamp || now + 60 < next_block.timestamp;
-        if !r {
-            error!("block doesn't have a valid timestamp");
-        }
-
-        r
-    }
-}
 
 impl Validator for PowValidator {
     fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
@@ -41,11 +10,11 @@ impl Validator for PowValidator {
             && prev_block.hash == next_block.previous_hash
             && next_block.calculate_hash() == next_block.hash
             && Self::has_valid_difficulty(next_block, chain)
-            && Self::hash_matches_difficulty(&next_block.hash, &next_block.difficulty, true)
+            && Self::has_valid_hash(&next_block.hash, &next_block.difficulty, true)
             && Self::is_valid_timestamp(next_block, prev_block)
     }
 
-    fn hash_matches_difficulty(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
+    fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
         let end = difficulty / 4 + 1;
         // end = 2
 
@@ -109,19 +78,19 @@ mod tests {
 
     #[test]
     fn test_hash_matches_difficulty() {
-        assert!(PowValidator::hash_matches_difficulty(
+        assert!(PowValidator::has_valid_hash(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &4,
             false
         ));
 
-        assert!(PowValidator::hash_matches_difficulty(
+        assert!(PowValidator::has_valid_hash(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &0,
             false
         ));
 
-        assert!(!PowValidator::hash_matches_difficulty(
+        assert!(!PowValidator::has_valid_hash(
             &String::from("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
             &5,
             false
