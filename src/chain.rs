@@ -1,5 +1,5 @@
 use crate::block::{Block, UNSPENT_TX_OUTS};
-use crate::difficulter::simple::SimpleDifficulter;
+use crate::difficulter::simple::{SimpleDifficulter, START_DIFFICULTY};
 use crate::difficulter::Difficulter;
 use crate::transaction::{Transaction, UnspentTxOut};
 use crate::TRANSACTIN_POOL;
@@ -12,10 +12,9 @@ pub struct BlockChain {
 impl BlockChain {
     /// add a new block if valid
     pub fn add(&mut self, new: Block) {
-        let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
-
         // TODO: return error
         if Block::is_valid_next_block(&new, &self.get_latest().unwrap(), self) {
+            let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
             if let Some(ret_val) =
                 Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
             {
@@ -56,7 +55,7 @@ impl BlockChain {
             timestamp: 1465154705,
             data: vec![],
             hash: String::new(),
-            difficulty: 0,
+            difficulty: START_DIFFICULTY,
             nonce: 0,
         };
 

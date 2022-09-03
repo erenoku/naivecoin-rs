@@ -1,4 +1,4 @@
-use bigint::U512;
+use primitive_types::U512;
 use sha2::{Digest, Sha256};
 use std::{
     ops::{Div, Mul},
@@ -47,10 +47,7 @@ fn check_special_hash(
     let hash: [u8; 32] = *hasher.finalize().as_ref();
 
     let left_side = U512::from_big_endian(&hash);
-    let right_side: U512 = U512::from(2)
-        .pow(256.into())
-        .mul(balance.into())
-        .div(diff.into());
+    let right_side: U512 = U512::from(2).pow(256.into()).mul(balance).div(diff);
 
     println!("left_side:  {}", left_side);
     println!("right_side: {}", right_side);
@@ -94,7 +91,7 @@ impl Validator for PosValidator {
         );
 
         loop {
-            let prev_timestamp = SystemTime::now()
+            let timestamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
@@ -102,7 +99,7 @@ impl Validator for PosValidator {
             let hash = Block::calculate_hash_from_data(
                 &(prev_block.index + 1),
                 &prev_block.hash,
-                &prev_timestamp,
+                &timestamp,
                 &data,
                 &difficulty,
                 &0,
@@ -118,13 +115,15 @@ impl Validator for PosValidator {
                 return Block {
                     index: (prev_block.index + 1),
                     previous_hash: prev_block.hash.clone(),
-                    timestamp: prev_timestamp,
+                    timestamp,
                     data,
                     hash,
                     difficulty,
                     nonce: 0,
                 };
             }
+
+            thread::sleep(Duration::from_secs(1));
         }
     }
 }
