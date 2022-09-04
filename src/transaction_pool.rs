@@ -36,9 +36,6 @@ impl TransactionPool {
         info!("try update pool");
         let mut r_indexes: Vec<usize> = vec![];
 
-        info!("unspent tx outs: {:?}", unspent_tx_outs);
-        info!("pool: {:?}", self.0);
-
         for (i, pool_tx) in self.0.iter().enumerate() {
             for pool_tx_in in pool_tx.tx_ins.iter() {
                 if !unspent_tx_outs.iter().any(|u_tx_out| {

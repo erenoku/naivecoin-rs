@@ -38,14 +38,17 @@ fn connect_to_peer<V: Validator + Send + Sync>(peer: String, app: &App<V>) -> ro
 fn mine_raw_block<V: Validator + Send + Sync>(body: String, app: &App<V>) -> rouille::Response {
     let mut chain = app.block_chain.write().unwrap();
 
-    let next_block =
-        Block::generate_next_raw(serde_json::from_str(&body).unwrap(), &chain, &app.validator);
+    let next_block = Block::generate_next_raw(
+        serde_json::from_str(&body).unwrap(),
+        &chain,
+        &*app.validator.read().unwrap(),
+    );
 
     chain.add(
         next_block,
         &mut app.transaction_pool.write().unwrap(),
         &mut app.unspent_tx_outs.write().unwrap(),
-        &app.validator,
+        &*app.validator.read().unwrap(),
     );
 
     let msg = Message {
@@ -79,13 +82,13 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
         &wallet,
         &pool,
         &u_tx_outs,
-        &app.validator,
+        &*app.validator.read().unwrap(),
     ) {
         chain.add(
             next_block.clone(),
             &mut pool,
             &mut u_tx_outs,
-            &app.validator,
+            &*app.validator.read().unwrap(),
         );
 
         let msg = Message {
@@ -154,10 +157,16 @@ fn mine_block<V: Validator + Send + Sync>(app: &App<V>) -> rouille::Response {
     let mut chain = app.block_chain.write().unwrap();
     let wallet = app.wallet.read().unwrap();
     let mut pool = app.transaction_pool.write().unwrap();
-    let mut unspent_tx_outs = app.unspent_tx_outs.write().unwrap();
 
-    let next_block = Block::generate_next(&chain, &wallet, &pool, &app.validator);
-    chain.add(next_block, &mut pool, &mut unspent_tx_outs, &app.validator);
+    let next_block = Block::generate_next(&chain, &wallet, &pool, &*app.validator.read().unwrap());
+
+    let mut unspent_tx_outs = app.unspent_tx_outs.write().unwrap();
+    chain.add(
+        next_block,
+        &mut pool,
+        &mut unspent_tx_outs,
+        &*app.validator.read().unwrap(),
+    );
 
     let msg = Message {
         m_type: MessageType::ResponseBlockchain,

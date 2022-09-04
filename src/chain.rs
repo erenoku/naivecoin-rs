@@ -28,7 +28,13 @@ impl BlockChain {
         validator: &impl Validator,
     ) {
         // TODO: return error
-        if Block::is_valid_next_block(&new, &self.get_latest().unwrap(), self, validator) {
+        if Block::is_valid_next_block(
+            &new,
+            &self.get_latest().unwrap(),
+            self,
+            validator,
+            &unspent_tx_outs,
+        ) {
             if let Some(ret_val) =
                 Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
             {
@@ -49,7 +55,7 @@ impl BlockChain {
     ) {
         let new_chain = BlockChain { blocks: new_blocks };
 
-        if let Some(new_unspent_tx_outs) = new_chain.is_valid(validator) {
+        if let Some(new_unspent_tx_outs) = new_chain.is_valid(validator, unspent_tx_outs) {
             if SimpleDifficulter::get_accumulated_difficulty(&new_chain)
                 > SimpleDifficulter::get_accumulated_difficulty(self)
             {
@@ -86,7 +92,11 @@ impl BlockChain {
 
     /// check if the complete chain is valid
     // TODO: return result
-    fn is_valid(&self, validator: &impl Validator) -> Option<Vec<UnspentTxOut>> {
+    fn is_valid(
+        &self,
+        validator: &impl Validator,
+        old_u_tx_outs: &Vec<UnspentTxOut>,
+    ) -> Option<Vec<UnspentTxOut>> {
         if *self.blocks.first().unwrap() != BlockChain::get_genesis() {
             return None;
         }
@@ -101,6 +111,7 @@ impl BlockChain {
                 self.blocks.get(i - 1).unwrap(),
                 &current_chain,
                 validator,
+                old_u_tx_outs,
             ) {
                 return None;
             }
@@ -125,10 +136,14 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
+    use crate::validator::pow::PowValidator;
+
     use super::*;
 
     #[test]
     fn test_is_valid() {
+        let validator = PowValidator {};
+
         let mut chain = BlockChain {
             blocks: vec![BlockChain::get_genesis()],
         };
@@ -145,7 +160,7 @@ mod tests {
         second.hash = second.calculate_hash();
         // Don't add new blocks like this there is a dedicated function for this called add
         chain.blocks.push(second.clone());
-        assert!(chain.is_valid().is_some());
+        assert!(chain.is_valid(&validator).is_some());
 
         let mut third = Block {
             index: 2,
@@ -159,7 +174,7 @@ mod tests {
         third.hash = third.calculate_hash();
         let mut c1 = chain.clone();
         c1.blocks.push(third);
-        assert!(c1.is_valid().is_none());
+        assert!(c1.is_valid(&validator).is_none());
 
         let mut forth = Block {
             index: 2,
@@ -172,11 +187,15 @@ mod tests {
         };
         forth.hash = forth.calculate_hash();
         chain.blocks.push(forth);
-        assert!(chain.is_valid().is_none());
+        assert!(chain.is_valid(&validator).is_none());
     }
 
     #[test]
     fn test_replace() {
+        let validator = PowValidator {};
+        let mut pool: TransactionPool = Default::default();
+        let mut unspent_tx_outs: Vec<UnspentTxOut> = Default::default();
+
         let mut original = BlockChain {
             blocks: vec![
                 BlockChain::get_genesis(),
@@ -205,9 +224,14 @@ mod tests {
         };
         new_block.hash = new_block.calculate_hash();
         let mut new_chain = original.clone();
-        new_chain.add(new_block);
+        new_chain.add(new_block, &mut pool, &mut unspent_tx_outs, &validator);
 
-        original.replace(new_chain.blocks);
+        original.replace(
+            new_chain.blocks,
+            &mut unspent_tx_outs,
+            &mut pool,
+            &validator,
+        );
         assert_eq!(original.blocks.len(), 3);
         assert_eq!(original.blocks[2].index, 2);
     }

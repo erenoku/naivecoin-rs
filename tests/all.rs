@@ -27,9 +27,9 @@ fn start_instance(config: &InstanceConfig) -> Child {
         .env("KEY_LOC", &config.key_loc)
         .env("INITIAL", &config.initial.join(","))
         .env("P2P_PORT", &config.p2p_port)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // .stdin(Stdio::null())
+        // .stdout(Stdio::null())
+        // .stderr(Stdio::null())
         .spawn()
         .expect("failed to execute process")
 }

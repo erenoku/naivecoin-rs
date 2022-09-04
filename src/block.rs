@@ -23,6 +23,8 @@ pub struct Block {
     pub hash: String,
     pub nonce: u32,
     pub difficulty: u32,
+    // pub creator_address: String,
+    // pub creator_balance
 }
 
 impl Block {
@@ -44,8 +46,9 @@ impl Block {
         prev: &Block,
         chain: &BlockChain,
         validator: &impl Validator,
+        unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> bool {
-        if validator.is_valid(prev, next, chain) {
+        if validator.is_valid(prev, next, chain, unspent_tx_outs) {
             return true;
         }
 

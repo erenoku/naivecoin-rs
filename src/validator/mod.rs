@@ -7,10 +7,16 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::block::Block;
 use crate::chain::BlockChain;
 use crate::difficulter::{simple::SimpleDifficulter, Difficulter};
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, UnspentTxOut};
 
 pub trait Validator {
-    fn is_valid(&self, prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool;
+    fn is_valid(
+        &self,
+        prev_block: &Block,
+        next_block: &Block,
+        chain: &BlockChain,
+        unspent_tx_outs: &Vec<UnspentTxOut>,
+    ) -> bool;
     fn find_block(&self, prev_block: &Block, data: Vec<Transaction>, difficulty: u32) -> Block;
     // fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool;
 

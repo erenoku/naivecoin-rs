@@ -10,7 +10,7 @@ use crate::{
     p2p::Server,
     transaction::{Transaction, UnspentTxOut},
     transaction_pool::TransactionPool,
-    validator::{self, Validator},
+    validator::Validator,
 };
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -53,7 +53,6 @@ impl Message {
         unspent_tx_outs: &mut Vec<UnspentTxOut>,
         validator: &impl Validator,
     ) {
-        info!("received: {}", self.content);
         let mut received_blocks: Vec<Block> = serde_json::from_str(&self.content).unwrap();
         received_blocks.sort_by(|a, b| a.index.cmp(&b.index));
         let latest_block_received = received_blocks.last().unwrap();

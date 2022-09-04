@@ -283,7 +283,6 @@ impl<V: Validator + Send + Sync> Server<V> {
                             if let Ok(str_buf) = from_utf8(&s) {
                                 match serde_json::from_str::<Message>(str_buf) {
                                     Ok(msg) => {
-                                        info!("got {:?}", msg);
                                         self.handle_receive_msg(&msg, connection);
                                     }
                                     Err(e) => {

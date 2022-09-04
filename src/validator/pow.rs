@@ -1,7 +1,7 @@
 use log::error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{block::Block, chain::BlockChain, validator::Validator};
+use crate::{block::Block, chain::BlockChain, transaction::UnspentTxOut, validator::Validator};
 
 #[derive(Debug)]
 pub struct PowValidator;
@@ -64,7 +64,13 @@ impl PowValidator {
 }
 
 impl Validator for PowValidator {
-    fn is_valid(&self, prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
+    fn is_valid(
+        &self,
+        prev_block: &Block,
+        next_block: &Block,
+        chain: &BlockChain,
+        _: &Vec<UnspentTxOut>,
+    ) -> bool {
         prev_block.index + 1 == next_block.index
             && prev_block.hash == next_block.previous_hash
             && next_block.calculate_hash() == next_block.hash

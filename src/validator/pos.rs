@@ -1,3 +1,4 @@
+use log::{error, info};
 use primitive_types::U512;
 use sha2::{Digest, Sha256};
 use std::{
@@ -51,7 +52,11 @@ fn check_special_hash(
     println!("left_side:  {}", left_side);
     println!("right_side: {}", right_side);
 
-    left_side <= right_side
+    let valid = left_side <= right_side;
+    if !valid {
+        error!("check_special_hash false");
+    }
+    valid
 }
 
 impl Validator for PosValidator {
@@ -60,12 +65,10 @@ impl Validator for PosValidator {
         prev_block: &crate::block::Block,
         next_block: &crate::block::Block,
         chain: &crate::chain::BlockChain,
+        unspent_tx_outs: &Vec<UnspentTxOut>,
     ) -> bool {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
-        let my_balance = Wallet::get_balance(
-            KeyPair::public_key_to_hex(pub_key),
-            &self.unspent_tx_outs.read().unwrap(),
-        );
+        let my_balance = Wallet::get_balance(KeyPair::public_key_to_hex(pub_key), unspent_tx_outs);
         check_special_hash(
             next_block.index,
             prev_block.hash.as_bytes(),
@@ -124,6 +127,7 @@ impl Validator for PosValidator {
                 };
             }
 
+            info!("sleep");
             thread::sleep(Duration::from_secs(1));
         }
     }
