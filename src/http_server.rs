@@ -1,11 +1,11 @@
-use naivecoin_rs::chain::BlockChain;
-use naivecoin_rs::validator::pow::PowValidator;
+use log::info;
 use naivecoin_rs::validator::Validator;
 use serde::{Deserialize, Serialize};
 
-use std::fmt::Debug;
 use std::io::Read;
 use std::sync::{Arc, RwLock};
+use std::thread;
+use std::time::Duration;
 
 use naivecoin_rs::block::Block;
 use naivecoin_rs::crypto::KeyPair;
@@ -154,6 +154,7 @@ fn get_public_key<V: Validator>(app: &App<V>) -> rouille::Response {
 }
 
 fn mine_block<V: Validator + Send + Sync>(app: &App<V>) -> rouille::Response {
+    info!("mine block");
     let mut chain = app.block_chain.write().unwrap();
     let wallet = app.wallet.read().unwrap();
     let mut pool = app.transaction_pool.write().unwrap();
@@ -168,11 +169,17 @@ fn mine_block<V: Validator + Send + Sync>(app: &App<V>) -> rouille::Response {
         &*app.validator.read().unwrap(),
     );
 
+    info!("added");
+
     let msg = Message {
         m_type: MessageType::ResponseBlockchain,
         content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
     };
     msg.broadcast::<V>();
+
+    info!("return");
+
+    // thread::sleep(Duration::from_secs_f32(0.5));
 
     rouille::Response::text("")
 }

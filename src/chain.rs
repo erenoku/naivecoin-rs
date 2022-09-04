@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::block::Block;
 use crate::difficulter::simple::{SimpleDifficulter, START_DIFFICULTY};
 use crate::difficulter::Difficulter;
@@ -69,6 +71,7 @@ impl BlockChain {
 
     /// return the latest block
     pub fn get_latest(&self) -> Option<Block> {
+        info!("get latest");
         Some(self.blocks.last()?.clone())
     }
 
@@ -143,6 +146,7 @@ mod tests {
     #[test]
     fn test_is_valid() {
         let validator = PowValidator {};
+        let mut unspent_tx_outs: Vec<UnspentTxOut> = vec![];
 
         let mut chain = BlockChain {
             blocks: vec![BlockChain::get_genesis()],
@@ -160,7 +164,7 @@ mod tests {
         second.hash = second.calculate_hash();
         // Don't add new blocks like this there is a dedicated function for this called add
         chain.blocks.push(second.clone());
-        assert!(chain.is_valid(&validator).is_some());
+        assert!(chain.is_valid(&validator, &unspent_tx_outs).is_some());
 
         let mut third = Block {
             index: 2,
@@ -174,7 +178,7 @@ mod tests {
         third.hash = third.calculate_hash();
         let mut c1 = chain.clone();
         c1.blocks.push(third);
-        assert!(c1.is_valid(&validator).is_none());
+        assert!(c1.is_valid(&validator, &unspent_tx_outs).is_none());
 
         let mut forth = Block {
             index: 2,
@@ -187,7 +191,7 @@ mod tests {
         };
         forth.hash = forth.calculate_hash();
         chain.blocks.push(forth);
-        assert!(chain.is_valid(&validator).is_none());
+        assert!(chain.is_valid(&validator, &unspent_tx_outs).is_none());
     }
 
     #[test]

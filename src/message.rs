@@ -118,6 +118,7 @@ impl Message {
     }
 
     pub fn broadcast<V: Validator + Send + Sync>(self) {
+        info!("broadcast");
         Server::<V>::broadcast(self.serialize().as_bytes());
     }
 }

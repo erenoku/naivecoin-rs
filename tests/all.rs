@@ -27,6 +27,7 @@ fn start_instance(config: &InstanceConfig) -> Child {
         .env("KEY_LOC", &config.key_loc)
         .env("INITIAL", &config.initial.join(","))
         .env("P2P_PORT", &config.p2p_port)
+        .env("RUST_LOG", String::from("INFO"))
         // .stdin(Stdio::null())
         // .stdout(Stdio::null())
         // .stderr(Stdio::null())
@@ -44,6 +45,7 @@ fn get_tmp_key_loc() -> String {
 }
 
 fn start_instances() -> Vec<Child> {
+    println!("start");
     let mut children = vec![];
     let configs = vec![
         InstanceConfig {
@@ -75,11 +77,14 @@ fn start_instances() -> Vec<Child> {
 }
 
 async fn mine_block(client: &Client, port: &str) {
+    println!("start mine");
     client
         .post(format!("http://localhost:{}/mineBlock", port))
         .send()
         .await
         .unwrap();
+
+    println!("end mine");
 }
 
 async fn get_balance(client: &Client, port: &str) -> u32 {
@@ -154,6 +159,8 @@ async fn get_pool(client: &Client, port: &str) -> Vec<Transaction> {
 async fn test_all() {
     let instances = start_instances();
 
+    println!("started");
+
     // defer! {
     //     println!("defering");
     //     for mut instance in instances {
@@ -171,56 +178,60 @@ async fn test_all() {
     mine_block(&client, HTTP_PORT_0).await;
     let balance = get_balance(&client, HTTP_PORT_0).await;
     assert_eq!(balance, 50_u32);
+    println!("first");
+    std::thread::sleep(Duration::from_secs(1));
     mine_block(&client, HTTP_PORT_0).await;
     mine_block(&client, HTTP_PORT_0).await;
     let balance = get_balance(&client, HTTP_PORT_0).await;
     assert_eq!(balance, 150_u32);
 
-    std::thread::sleep(Duration::from_secs(1));
+    // std::thread::sleep(Duration::from_secs(1));
 
     // test if blocks are received
-    let blocks0 = get_blocks(&client, HTTP_PORT_0).await;
-    let blocks1 = get_blocks(&client, HTTP_PORT_1).await;
-    let blocks2 = get_blocks(&client, HTTP_PORT_2).await;
-    assert_eq!(blocks0, blocks1);
-    assert_eq!(blocks1, blocks2);
+    // let blocks0 = get_blocks(&client, HTTP_PORT_0).await;
+    // let blocks1 = get_blocks(&client, HTTP_PORT_1).await;
+    // let blocks2 = get_blocks(&client, HTTP_PORT_2).await;
+    // assert_eq!(blocks0, blocks1);
+    // assert_eq!(blocks1, blocks2);
 
-    std::thread::sleep(Duration::from_secs(1));
+    // println!("first");
 
-    // test if mining transactions work
-    let addr2 = get_addr(&client, HTTP_PORT_2).await;
-    mine_transaction(&client, HTTP_PORT_0, &addr2, 100).await;
-    let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    assert_eq!(balance0, 100_u32);
-    assert_eq!(balance2, 100_u32);
+    // std::thread::sleep(Duration::from_secs(1));
 
-    // test if sending transactions to pool work
-    send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
-    send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
-    let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    assert_eq!(balance0, 100_u32);
-    assert_eq!(balance2, 100_u32);
+    // // test if mining transactions work
+    // let addr2 = get_addr(&client, HTTP_PORT_2).await;
+    // mine_transaction(&client, HTTP_PORT_0, &addr2, 100).await;
+    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    // assert_eq!(balance0, 100_u32);
+    // assert_eq!(balance2, 100_u32);
 
-    std::thread::sleep(Duration::from_secs(1));
+    // // test if sending transactions to pool work
+    // send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
+    // send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
+    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    // assert_eq!(balance0, 100_u32);
+    // assert_eq!(balance2, 100_u32);
 
-    mine_block(&client, HTTP_PORT_1).await;
+    // std::thread::sleep(Duration::from_secs(1));
 
-    std::thread::sleep(Duration::from_secs(1));
+    // mine_block(&client, HTTP_PORT_1).await;
 
-    let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    let balance1 = get_balance(&client, HTTP_PORT_1).await;
-    let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    assert_eq!(balance0, 0_u32);
-    assert_eq!(balance1, 50_u32);
-    assert_eq!(balance2, 200_u32);
+    // std::thread::sleep(Duration::from_secs(1));
 
-    // check if pool has been emptied
-    let pool0 = get_pool(&client, HTTP_PORT_0).await;
-    let pool1 = get_pool(&client, HTTP_PORT_1).await;
-    let pool2 = get_pool(&client, HTTP_PORT_2).await;
-    assert_eq!(pool0.len(), 0);
-    assert_eq!(pool0, pool1);
-    assert_eq!(pool1, pool2);
+    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    // let balance1 = get_balance(&client, HTTP_PORT_1).await;
+    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    // assert_eq!(balance0, 0_u32);
+    // assert_eq!(balance1, 50_u32);
+    // assert_eq!(balance2, 200_u32);
+
+    // // check if pool has been emptied
+    // let pool0 = get_pool(&client, HTTP_PORT_0).await;
+    // let pool1 = get_pool(&client, HTTP_PORT_1).await;
+    // let pool2 = get_pool(&client, HTTP_PORT_2).await;
+    // assert_eq!(pool0.len(), 0);
+    // assert_eq!(pool0, pool1);
+    // assert_eq!(pool1, pool2);
 }

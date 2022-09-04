@@ -49,13 +49,11 @@ fn check_special_hash(
     let left_side = U512::from_big_endian(&hash);
     let right_side: U512 = U512::from(2).pow(256.into()).mul(balance).div(diff);
 
-    println!("left_side:  {}", left_side);
-    println!("right_side: {}", right_side);
-
     let valid = left_side <= right_side;
     if !valid {
         error!("check_special_hash false");
     }
+    info!("find");
     valid
 }
 
@@ -116,6 +114,7 @@ impl Validator for PosValidator {
                 my_balance,
                 difficulty,
             ) {
+                info!("find");
                 return Block {
                     index: (prev_block.index + 1),
                     previous_hash: prev_block.hash.clone(),
@@ -127,8 +126,9 @@ impl Validator for PosValidator {
                 };
             }
 
-            info!("sleep");
-            thread::sleep(Duration::from_secs(1));
+            // info!("sleep");
+            // thread::sleep(Duration::from_secs(1));
+            // info!("end sleep");
         }
     }
 }

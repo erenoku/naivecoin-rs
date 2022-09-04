@@ -6,7 +6,7 @@ use naivecoin_rs::p2p_handler::P2PHandler;
 use naivecoin_rs::transaction::UnspentTxOut;
 use naivecoin_rs::transaction_pool::TransactionPool;
 use naivecoin_rs::validator::pos::PosValidator;
-// use naivecoin_rs::validator::pow::PowValidator;
+use naivecoin_rs::validator::pow::PowValidator;
 use naivecoin_rs::validator::Validator;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -73,9 +73,9 @@ fn main() {
         signing_key_location: config.key_location,
     }));
     let unspent_tx_outs: Arc<RwLock<Vec<UnspentTxOut>>> = Default::default();
-    let validator = Arc::new(RwLock::new(PosValidator {
-        wallet: wallet.clone(),
-        unspent_tx_outs: unspent_tx_outs.clone(),
+    let validator = Arc::new(RwLock::new(PowValidator {
+        // wallet: wallet.clone(),
+        // unspent_tx_outs: unspent_tx_outs.clone(),
     }));
     let app = Arc::new(RwLock::new(App::new(validator, wallet, unspent_tx_outs)));
 
@@ -85,7 +85,7 @@ fn main() {
         }
 
         if let Ok(peer) = peer.parse() {
-            Server::<PosValidator>::connect_to_peer(peer);
+            Server::<PowValidator>::connect_to_peer(peer);
         } else {
             error!("could not parse peer: {}", &peer);
         }
@@ -115,6 +115,8 @@ fn main() {
             },
         }
         .init();
-    });
+    })
+    .join()
+    .unwrap();
     http_handler.join().unwrap();
 }

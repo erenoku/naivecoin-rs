@@ -161,6 +161,8 @@ impl<V: Validator + Send + Sync> Server<V> {
     pub fn broadcast(buf: &[u8]) {
         let mut c = CONNECTIONS.write().unwrap();
 
+        info!("got c");
+
         for t in 0..c.len() {
             let (stream, ..) = c.get_mut(t).unwrap();
             stream.write_all(buf).unwrap();
@@ -272,7 +274,7 @@ impl<V: Validator + Send + Sync> Server<V> {
                             last_read = s.len() + 1 == received_data.len();
 
                             // partial read
-                            if !received_data[s.len()] == b'\0' {
+                            if !received_data[s.len() - 1] == b'\0' {
                                 break 'outer;
                             }
 
