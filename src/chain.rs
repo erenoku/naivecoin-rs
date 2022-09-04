@@ -1,42 +1,61 @@
-use crate::block::{Block, UNSPENT_TX_OUTS};
+use crate::block::Block;
 use crate::difficulter::simple::{SimpleDifficulter, START_DIFFICULTY};
 use crate::difficulter::Difficulter;
 use crate::transaction::{Transaction, UnspentTxOut};
-use crate::TRANSACTIN_POOL;
+use crate::transaction_pool::TransactionPool;
+use crate::validator::Validator;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BlockChain {
     pub blocks: Vec<Block>,
 }
 
+impl Default for BlockChain {
+    fn default() -> Self {
+        Self {
+            blocks: vec![Self::get_genesis()],
+        }
+    }
+}
+
 impl BlockChain {
     /// add a new block if valid
-    pub fn add(&mut self, new: Block) {
+    pub fn add(
+        &mut self,
+        new: Block,
+        pool: &mut TransactionPool,
+        unspent_tx_outs: &mut Vec<UnspentTxOut>,
+        validator: &impl Validator,
+    ) {
         // TODO: return error
-        if Block::is_valid_next_block(&new, &self.get_latest().unwrap(), self) {
-            let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
+        if Block::is_valid_next_block(&new, &self.get_latest().unwrap(), self, validator) {
             if let Some(ret_val) =
                 Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
             {
                 self.blocks.push(new);
                 *unspent_tx_outs = ret_val;
-                TRANSACTIN_POOL.write().unwrap().update(&unspent_tx_outs);
+                pool.update(&unspent_tx_outs);
             }
         }
     }
 
     /// get new_blocks and if valid completely change the self.blocks
-    pub fn replace(&mut self, new_blocks: Vec<Block>) {
+    pub fn replace(
+        &mut self,
+        new_blocks: Vec<Block>,
+        unspent_tx_outs: &mut Vec<UnspentTxOut>,
+        transaction_pool: &mut TransactionPool,
+        validator: &impl Validator,
+    ) {
         let new_chain = BlockChain { blocks: new_blocks };
-        let mut unspent_tx_outs = UNSPENT_TX_OUTS.write().unwrap();
 
-        if let Some(new_unspent_tx_outs) = new_chain.is_valid() {
+        if let Some(new_unspent_tx_outs) = new_chain.is_valid(validator) {
             if SimpleDifficulter::get_accumulated_difficulty(&new_chain)
                 > SimpleDifficulter::get_accumulated_difficulty(self)
             {
                 self.blocks = new_chain.blocks;
                 *unspent_tx_outs = new_unspent_tx_outs;
-                TRANSACTIN_POOL.write().unwrap().update(&unspent_tx_outs);
+                transaction_pool.update(&unspent_tx_outs);
             }
         }
         // TODO: return error
@@ -67,7 +86,7 @@ impl BlockChain {
 
     /// check if the complete chain is valid
     // TODO: return result
-    fn is_valid(&self) -> Option<Vec<UnspentTxOut>> {
+    fn is_valid(&self, validator: &impl Validator) -> Option<Vec<UnspentTxOut>> {
         if *self.blocks.first().unwrap() != BlockChain::get_genesis() {
             return None;
         }
@@ -81,6 +100,7 @@ impl BlockChain {
                 self.blocks.get(i).unwrap(),
                 self.blocks.get(i - 1).unwrap(),
                 &current_chain,
+                validator,
             ) {
                 return None;
             }

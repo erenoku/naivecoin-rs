@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{block::Block, chain::BlockChain, validator::Validator};
 
+#[derive(Debug)]
 pub struct PowValidator;
 
 impl PowValidator {
@@ -63,16 +64,17 @@ impl PowValidator {
 }
 
 impl Validator for PowValidator {
-    fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
+    fn is_valid(&self, prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool {
         prev_block.index + 1 == next_block.index
             && prev_block.hash == next_block.previous_hash
             && next_block.calculate_hash() == next_block.hash
-            && Self::has_valid_difficulty(next_block, chain)
+            && self.has_valid_difficulty(next_block, chain)
             && Self::has_valid_hash(&next_block.hash, &next_block.difficulty, true)
-            && Self::is_valid_timestamp(next_block, prev_block)
+            && self.is_valid_timestamp(next_block, prev_block)
     }
 
     fn find_block(
+        &self,
         prev_block: &Block,
         data: Vec<crate::transaction::Transaction>,
         difficulty: u32,

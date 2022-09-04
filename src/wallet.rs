@@ -2,12 +2,10 @@ use log::{error, info};
 use openssl::ec::EcPoint;
 
 use std::path::Path;
-use std::sync::RwLock;
 
 use crate::crypto::{KeyPair, PrivateKey};
 use crate::transaction::{Transaction, TxIn, TxOut, UnspentTxOut};
 use crate::transaction_pool::TransactionPool;
-use crate::{TRANSACTIN_POOL, WALLET};
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -15,10 +13,6 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    pub fn global() -> &'static RwLock<Self> {
-        WALLET.get().expect("wallet not initialized")
-    }
-
     pub fn get_public_key(&self) -> EcPoint {
         self.get_private_key().to_public_key()
     }
@@ -129,6 +123,7 @@ impl Wallet {
         amount: u64,
         private_key: &PrivateKey,
         unspent_tx_outs: Vec<UnspentTxOut>,
+        pool: &TransactionPool,
     ) -> Option<Transaction> {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());
         let my_unspent_tx_outs_a: Vec<UnspentTxOut> = unspent_tx_outs
@@ -137,7 +132,7 @@ impl Wallet {
             .filter(|u_tx_out| u_tx_out.address == my_addr)
             .collect();
         let my_unspent_tx_outs: Vec<UnspentTxOut> =
-            Self::filter_tx_pool_txs(my_unspent_tx_outs_a, &TRANSACTIN_POOL.read().unwrap());
+            Self::filter_tx_pool_txs(my_unspent_tx_outs_a, pool);
         // filterTxPoolTxs(myUnspentTxOutsA, txPool);
 
         let (included_unspent_tx_outs, left_over_amount) =

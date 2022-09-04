@@ -1,24 +1,18 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{
-    sync::RwLock,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::sync::RwLock;
 
 use crate::{
     chain::BlockChain,
     crypto::KeyPair,
     difficulter::{simple::SimpleDifficulter, Difficulter},
     transaction::{Transaction, UnspentTxOut},
-    validator::{pos::PosValidator as PowValidator, Validator},
+    transaction_pool::TransactionPool,
+    validator::Validator,
     // validator::{pow::PowValidator, Validator},
     wallet::Wallet,
-    BLOCK_CHAIN,
-    TRANSACTIN_POOL,
 };
-
-pub static UNSPENT_TX_OUTS: Lazy<RwLock<Vec<UnspentTxOut>>> = Lazy::new(|| RwLock::new(vec![]));
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Block {
@@ -45,8 +39,13 @@ impl Block {
     }
 
     /// check if the next block is valid for the given previous block
-    pub fn is_valid_next_block(next: &Block, prev: &Block, chain: &BlockChain) -> bool {
-        if PowValidator::is_valid(prev, next, chain) {
+    pub fn is_valid_next_block(
+        next: &Block,
+        prev: &Block,
+        chain: &BlockChain,
+        validator: &impl Validator,
+    ) -> bool {
+        if validator.is_valid(prev, next, chain) {
             return true;
         }
 
@@ -75,47 +74,65 @@ impl Block {
         format!("{:x}", hasher.finalize())
     }
 
-    pub fn generate_next() -> Self {
-        let chain = BLOCK_CHAIN.read().unwrap();
-        let public_key = &Wallet::global().read().unwrap().get_public_key();
+    pub fn generate_next(
+        chain: &BlockChain,
+        wallet: &Wallet,
+        tx_pool: &TransactionPool,
+        validator: &impl Validator,
+    ) -> Self {
+        let public_key = wallet.get_public_key();
 
         let coinbase_tx = Transaction::get_coinbase_tx(
-            KeyPair::public_key_to_hex(public_key),
+            KeyPair::public_key_to_hex(&public_key),
             (chain.get_latest().unwrap().index + 1) as u64,
         );
-        let tx = &*TRANSACTIN_POOL.read().unwrap();
-        Self::generate_next_raw(vec![vec![coinbase_tx], tx.0.clone()].concat(), &chain)
+        Self::generate_next_raw(
+            vec![vec![coinbase_tx], tx_pool.0.clone()].concat(),
+            &chain,
+            validator,
+        )
     }
 
     /// generate the next block with given block_data
-    pub fn generate_next_raw(block_data: Vec<Transaction>, chain: &BlockChain) -> Self {
+    pub fn generate_next_raw(
+        block_data: Vec<Transaction>,
+        chain: &BlockChain,
+        validator: &impl Validator,
+    ) -> Self {
         let prev_block = chain.get_latest().unwrap();
-        let next_index = prev_block.index + 1;
-        let next_timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let difficulty = SimpleDifficulter::get_difficulty(&BLOCK_CHAIN.read().unwrap());
+        let difficulty = SimpleDifficulter::get_difficulty(chain);
 
-        PowValidator::find_block(&prev_block, block_data, difficulty)
+        validator.find_block(&prev_block, block_data, difficulty)
     }
 
-    pub fn generate_next_with_transaction(receiver_addr: String, amount: u64) -> Option<Self> {
-        let chain = BLOCK_CHAIN.read().unwrap();
-        let public_key = &Wallet::global().read().unwrap().get_public_key();
-        let private_key = &Wallet::global().read().unwrap().get_private_key();
+    pub fn generate_next_with_transaction(
+        receiver_addr: String,
+        amount: u64,
+        chain: &BlockChain,
+        wallet: &Wallet,
+        pool: &TransactionPool,
+        unspent_tx_outs: &Vec<UnspentTxOut>,
+        validator: &impl Validator,
+    ) -> Option<Self> {
+        let public_key = wallet.get_public_key();
+        let private_key = wallet.get_private_key();
 
         let coinbase_tx = Transaction::get_coinbase_tx(
-            KeyPair::public_key_to_hex(public_key),
+            KeyPair::public_key_to_hex(&public_key),
             (chain.get_latest().unwrap().index + 1) as u64,
         );
         if let Some(tx) = Wallet::create_transaction(
             receiver_addr,
             amount,
-            private_key,
-            UNSPENT_TX_OUTS.read().unwrap().to_vec(),
+            &private_key,
+            unspent_tx_outs.to_vec(),
+            pool,
         ) {
-            return Some(Self::generate_next_raw(vec![coinbase_tx, tx], &chain));
+            return Some(Self::generate_next_raw(
+                vec![coinbase_tx, tx],
+                &chain,
+                validator,
+            ));
         }
         None
     }

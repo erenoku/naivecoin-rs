@@ -10,11 +10,11 @@ use crate::difficulter::{simple::SimpleDifficulter, Difficulter};
 use crate::transaction::Transaction;
 
 pub trait Validator {
-    fn is_valid(prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool;
-    fn find_block(prev_block: &Block, data: Vec<Transaction>, difficulty: u32) -> Block;
+    fn is_valid(&self, prev_block: &Block, next_block: &Block, chain: &BlockChain) -> bool;
+    fn find_block(&self, prev_block: &Block, data: Vec<Transaction>, difficulty: u32) -> Block;
     // fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool;
 
-    fn has_valid_difficulty(block: &Block, chain: &BlockChain) -> bool {
+    fn has_valid_difficulty(&self, block: &Block, chain: &BlockChain) -> bool {
         let r = block.difficulty >= SimpleDifficulter::get_difficulty(chain);
         if !r {
             error!("block doesn't have valid difficulty")
@@ -23,7 +23,7 @@ pub trait Validator {
         r
     }
 
-    fn is_valid_timestamp(next_block: &Block, prev_block: &Block) -> bool {
+    fn is_valid_timestamp(&self, next_block: &Block, prev_block: &Block) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()

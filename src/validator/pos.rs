@@ -2,20 +2,19 @@ use primitive_types::U512;
 use sha2::{Digest, Sha256};
 use std::{
     ops::{Div, Mul},
+    sync::{Arc, RwLock},
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::{
-    block::{Block, UNSPENT_TX_OUTS},
-    crypto::KeyPair,
-    difficulter::Difficulter,
-    wallet::Wallet,
-};
+use crate::{block::Block, crypto::KeyPair, transaction::UnspentTxOut, wallet::Wallet};
 
 use super::Validator;
 
-pub struct PosValidator;
+pub struct PosValidator {
+    pub wallet: Arc<RwLock<Wallet>>,
+    pub unspent_tx_outs: Arc<RwLock<Vec<UnspentTxOut>>>,
+}
 
 const ALLOW_WITHOUT_COIN_INDEX: u8 = 10;
 
@@ -57,14 +56,15 @@ fn check_special_hash(
 
 impl Validator for PosValidator {
     fn is_valid(
+        &self,
         prev_block: &crate::block::Block,
         next_block: &crate::block::Block,
         chain: &crate::chain::BlockChain,
     ) -> bool {
-        let pub_key = &Wallet::global().read().unwrap().get_public_key();
+        let pub_key = &self.wallet.read().unwrap().get_public_key();
         let my_balance = Wallet::get_balance(
-            KeyPair::public_key_to_hex(&pub_key),
-            &UNSPENT_TX_OUTS.read().unwrap(),
+            KeyPair::public_key_to_hex(pub_key),
+            &self.unspent_tx_outs.read().unwrap(),
         );
         check_special_hash(
             next_block.index,
@@ -75,19 +75,20 @@ impl Validator for PosValidator {
         ) && prev_block.index + 1 == next_block.index
             && prev_block.hash == next_block.previous_hash
             && next_block.calculate_hash() == next_block.hash
-            && Self::has_valid_difficulty(next_block, chain)
-            && Self::is_valid_timestamp(next_block, prev_block)
+            && self.has_valid_difficulty(next_block, chain)
+            && self.is_valid_timestamp(next_block, prev_block)
     }
 
     fn find_block(
+        &self,
         prev_block: &crate::block::Block,
         data: Vec<crate::transaction::Transaction>,
         difficulty: u32,
     ) -> Block {
-        let pub_key = &Wallet::global().read().unwrap().get_public_key();
+        let pub_key = &self.wallet.read().unwrap().get_public_key();
         let my_balance = Wallet::get_balance(
-            KeyPair::public_key_to_hex(&pub_key),
-            &UNSPENT_TX_OUTS.read().unwrap(),
+            KeyPair::public_key_to_hex(pub_key),
+            &self.unspent_tx_outs.read().unwrap(),
         );
 
         loop {

@@ -14,6 +14,7 @@ use std::{thread, thread::JoinHandle};
 
 use crate::message::{Message, MessageType};
 use crate::p2p_handler::P2PHandler;
+use crate::validator::Validator;
 
 const SERVER: Token = Token(0);
 
@@ -23,103 +24,102 @@ static POLL: Lazy<RwLock<Poll>> = Lazy::new(|| RwLock::new(Poll::new().unwrap())
 static UNIQUE_TOKEN: Lazy<RwLock<Token>> = Lazy::new(|| RwLock::new(Token(SERVER.0 + 1)));
 static CONNECTIONS: Lazy<RwLock<Vec<ConnectionState>>> = Lazy::new(|| RwLock::new(vec![]));
 
-pub struct Server {
+pub struct Server<V: Validator> {
     pub addr: SocketAddr,
+    pub handler: P2PHandler<V>,
 }
 
-impl Server {
+impl<V: Validator + Send + Sync> Server<V> {
     // init the p2p server return the thread handler
     pub fn init(&self) -> JoinHandle<()> {
         let addr = Arc::new(self.addr);
 
-        thread::spawn(move || {
-            let mut events = Events::with_capacity(128);
+        let mut events = Events::with_capacity(128);
 
-            let mut listener = TcpListener::bind(*addr).unwrap();
+        let mut listener = TcpListener::bind(*addr).unwrap();
 
-            POLL.write()
-                .unwrap()
-                .registry()
-                .register(&mut listener, SERVER, Interest::READABLE)
-                .unwrap();
+        POLL.write()
+            .unwrap()
+            .registry()
+            .register(&mut listener, SERVER, Interest::READABLE)
+            .unwrap();
 
-            loop {
-                POLL.write().unwrap().poll(&mut events, None).unwrap();
+        loop {
+            POLL.write().unwrap().poll(&mut events, None).unwrap();
 
-                for event in &events {
-                    match event.token() {
-                        SERVER => {
-                            // Received an event for the TCP server socket, which
-                            // indicates we can accept an connection.
-                            loop {
-                                let (mut connection, address) = match listener.accept() {
-                                    Ok((connection, address)) => (connection, address),
-                                    Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
-                                        // If we get a `WouldBlock` error we know our
-                                        // listener has no more incoming connections queued,
-                                        // so we can return to polling and wait for some
-                                        // more.
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        // If it was any other kind of error, something went
-                                        // wrong and we terminate with an error.
-                                        // TODO: error handling
-                                        panic!("{}", e);
-                                    }
-                                };
+            for event in &events {
+                match event.token() {
+                    SERVER => {
+                        // Received an event for the TCP server socket, which
+                        // indicates we can accept an connection.
+                        loop {
+                            let (mut connection, address) = match listener.accept() {
+                                Ok((connection, address)) => (connection, address),
+                                Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                                    // If we get a `WouldBlock` error we know our
+                                    // listener has no more incoming connections queued,
+                                    // so we can return to polling and wait for some
+                                    // more.
+                                    break;
+                                }
+                                Err(e) => {
+                                    // If it was any other kind of error, something went
+                                    // wrong and we terminate with an error.
+                                    // TODO: error handling
+                                    panic!("{}", e);
+                                }
+                            };
 
-                                info!("Accepted connection from: {}", address);
+                            info!("Accepted connection from: {}", address);
 
-                                let token = Self::next(&mut UNIQUE_TOKEN.write().unwrap());
-                                POLL.read()
+                            let token = Self::next(&mut UNIQUE_TOKEN.write().unwrap());
+                            POLL.read()
+                                .unwrap()
+                                .registry()
+                                .register(
+                                    &mut connection,
+                                    token,
+                                    Interest::READABLE.add(Interest::WRITABLE),
+                                )
+                                .unwrap();
+
+                            let mut c = CONNECTIONS.write().unwrap();
+                            c.insert(token.0 - 1, (connection, vec![0; 4096], 0));
+                            drop(c);
+                        }
+                    }
+                    token => {
+                        let token = Token(token.0 - 1);
+                        let mut c = CONNECTIONS.write().unwrap();
+                        // Maybe received an event for a TCP connection.
+                        let done = if let Some(connection) = c.get_mut(token.0) {
+                            let (connection, buf, bytes_read) = connection;
+                            self.handle_connection_event(
+                                POLL.write().unwrap().registry(),
+                                connection,
+                                buf,
+                                bytes_read,
+                                event,
+                            )
+                            .unwrap()
+                        } else {
+                            // Sporadic events happen, we can safely ignore them.
+                            false
+                        };
+                        if done {
+                            // TODO: find a way to remove the connection from connections vector
+                            if let Some((connection, ..)) = c.get_mut(token.0) {
+                                POLL.write()
                                     .unwrap()
                                     .registry()
-                                    .register(
-                                        &mut connection,
-                                        token,
-                                        Interest::READABLE.add(Interest::WRITABLE),
-                                    )
+                                    .deregister(connection)
                                     .unwrap();
-
-                                let mut c = CONNECTIONS.write().unwrap();
-                                c.insert(token.0 - 1, (connection, vec![0; 4096], 0));
-                                drop(c);
-                            }
-                        }
-                        token => {
-                            let token = Token(token.0 - 1);
-                            let mut c = CONNECTIONS.write().unwrap();
-                            // Maybe received an event for a TCP connection.
-                            let done = if let Some(connection) = c.get_mut(token.0) {
-                                let (connection, buf, bytes_read) = connection;
-                                Self::handle_connection_event(
-                                    POLL.write().unwrap().registry(),
-                                    connection,
-                                    buf,
-                                    bytes_read,
-                                    event,
-                                )
-                                .unwrap()
-                            } else {
-                                // Sporadic events happen, we can safely ignore them.
-                                false
-                            };
-                            if done {
-                                // TODO: find a way to remove the connection from connections vector
-                                if let Some((connection, ..)) = c.get_mut(token.0) {
-                                    POLL.write()
-                                        .unwrap()
-                                        .registry()
-                                        .deregister(connection)
-                                        .unwrap();
-                                }
                             }
                         }
                     }
                 }
             }
-        })
+        }
     }
 
     pub fn connect_to_peer(addr: SocketAddr) -> Token {
@@ -169,14 +169,13 @@ impl Server {
 
     /// Returns `true` if the connection is done.
     fn handle_connection_event(
+        &self,
         registry: &Registry,
         connection: &mut TcpStream,
         buf: &mut Vec<u8>,
         bytes_read: &mut u32,
         event: &Event,
     ) -> io::Result<bool> {
-      
-
         if event.is_writable() {
             let query_chain_msg = Message {
                 m_type: MessageType::QueryLatest,
@@ -208,9 +207,8 @@ impl Server {
                 Err(ref err) if Self::would_block(err) => {}
                 // Got interrupted (how rude!), we'll try again.
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(
-                        registry, connection, buf, bytes_read, event,
-                    )
+                    return self
+                        .handle_connection_event(registry, connection, buf, bytes_read, event)
                 }
                 // Other errors we'll consider fatal.
                 Err(err) => return Err(err),
@@ -231,9 +229,8 @@ impl Server {
                 Err(ref err) if Self::would_block(err) => {}
                 // Got interrupted (how rude!), we'll try again.
                 Err(ref err) if Self::interrupted(err) => {
-                    return Self::handle_connection_event(
-                        registry, connection, buf, bytes_read, event,
-                    )
+                    return self
+                        .handle_connection_event(registry, connection, buf, bytes_read, event)
                 }
                 // Other errors we'll consider fatal.
                 Err(err) => return Err(err),
@@ -286,7 +283,8 @@ impl Server {
                             if let Ok(str_buf) = from_utf8(&s) {
                                 match serde_json::from_str::<Message>(str_buf) {
                                     Ok(msg) => {
-                                        Self::handle_receive_msg(&msg, connection);
+                                        info!("got {:?}", msg);
+                                        self.handle_receive_msg(&msg, connection);
                                     }
                                     Err(e) => {
                                         info!("error {e}");
@@ -331,7 +329,7 @@ impl Server {
         Token(next)
     }
 
-    fn handle_receive_msg(msg: &Message, connection: &mut TcpStream) {
-        P2PHandler::handle_receive_msg(msg, connection)
+    fn handle_receive_msg(&self, msg: &Message, connection: &mut TcpStream) {
+        self.handler.handle_receive_msg(msg, connection)
     }
 }

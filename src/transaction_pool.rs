@@ -3,14 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::transaction::{Transaction, TxIn, UnspentTxOut};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct TransactionPool(pub Vec<Transaction>);
-
-impl Default for TransactionPool {
-    fn default() -> Self {
-        Self(vec![])
-    }
-}
 
 impl TransactionPool {
     pub fn new() -> Self {
