@@ -32,7 +32,7 @@ impl TransactionPool {
         true
     }
 
-    pub fn update(&mut self, unspent_tx_outs: &Vec<UnspentTxOut>) {
+    pub fn update(&mut self, unspent_tx_outs: &[UnspentTxOut]) {
         info!("try update pool");
         let mut r_indexes: Vec<usize> = vec![];
 

@@ -1,7 +1,6 @@
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::sync::{RwLock, RwLockWriteGuard};
+use std::sync::RwLockWriteGuard;
 
 use crate::{
     chain::BlockChain,
@@ -46,7 +45,7 @@ impl Block {
         prev: &Block,
         chain: &BlockChain,
         validator: &impl Validator,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: &[UnspentTxOut],
     ) -> bool {
         if validator.is_valid(prev, next, chain, unspent_tx_outs) {
             return true;
@@ -91,7 +90,7 @@ impl Block {
         );
         Self::generate_next_raw(
             vec![vec![coinbase_tx], tx_pool.0.clone()].concat(),
-            &chain,
+            chain,
             validator,
         )
     }
@@ -125,13 +124,12 @@ impl Block {
             (chain.get_latest().unwrap().index + 1) as u64,
         );
         if let Some(tx) =
-            Wallet::create_transaction(receiver_addr, amount, &private_key, &*unspent_tx_outs, pool)
+            Wallet::create_transaction(receiver_addr, amount, &private_key, &unspent_tx_outs, pool)
         {
-            drop(wallet);
             drop(unspent_tx_outs);
             return Some(Self::generate_next_raw(
                 vec![coinbase_tx, tx],
-                &chain,
+                chain,
                 validator,
             ));
         }

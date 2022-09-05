@@ -1,16 +1,12 @@
-use log::info;
-use naivecoin_rs::validator::Validator;
 use serde::{Deserialize, Serialize};
-
 use std::io::Read;
 use std::sync::{Arc, RwLock};
-use std::thread;
-use std::time::Duration;
 
 use naivecoin_rs::block::Block;
 use naivecoin_rs::crypto::KeyPair;
 use naivecoin_rs::message::{Message, MessageType};
 use naivecoin_rs::p2p;
+use naivecoin_rs::validator::Validator;
 use naivecoin_rs::wallet::Wallet;
 
 use crate::App;
@@ -19,7 +15,7 @@ fn blocks<V: Validator>(app: &App<V>) -> rouille::Response {
     rouille::Response::json(&app.block_chain.read().unwrap().blocks)
 }
 
-fn connect_to_peer<V: Validator + Send + Sync>(peer: String, app: &App<V>) -> rouille::Response {
+fn connect_to_peer<V: Validator + Send + Sync>(peer: String, _app: &App<V>) -> rouille::Response {
     if peer.is_empty() {
         return rouille::Response::text("").with_status_code(500);
     }
@@ -114,14 +110,9 @@ fn send_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
         let u_tx_outs = app.unspent_tx_outs.read().unwrap();
 
         let data: TxData = serde_json::from_str(&body).expect("error parsing body");
-        let tx = Wallet::create_transaction(
-            data.address,
-            data.amount,
-            &private_key,
-            &u_tx_outs.to_vec(),
-            &pool,
-        )
-        .unwrap();
+        let tx =
+            Wallet::create_transaction(data.address, data.amount, &private_key, &u_tx_outs, &pool)
+                .unwrap();
 
         let ok = pool.add(tx.clone(), &u_tx_outs);
 

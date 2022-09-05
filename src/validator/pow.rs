@@ -69,7 +69,7 @@ impl Validator for PowValidator {
         prev_block: &Block,
         next_block: &Block,
         chain: &BlockChain,
-        _: &Vec<UnspentTxOut>,
+        _: &[UnspentTxOut],
     ) -> bool {
         prev_block.index + 1 == next_block.index
             && prev_block.hash == next_block.previous_hash

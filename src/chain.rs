@@ -35,14 +35,14 @@ impl BlockChain {
             &self.get_latest().unwrap(),
             self,
             validator,
-            &unspent_tx_outs,
+            unspent_tx_outs,
         ) {
             if let Some(ret_val) =
-                Transaction::process_transaction(&new.data, &unspent_tx_outs, &(new.index as u64))
+                Transaction::process_transaction(&new.data, unspent_tx_outs, &(new.index as u64))
             {
                 self.blocks.push(new);
                 *unspent_tx_outs = ret_val;
-                pool.update(&unspent_tx_outs);
+                pool.update(unspent_tx_outs);
             }
         }
     }
@@ -63,7 +63,7 @@ impl BlockChain {
             {
                 self.blocks = new_chain.blocks;
                 *unspent_tx_outs = new_unspent_tx_outs;
-                transaction_pool.update(&unspent_tx_outs);
+                transaction_pool.update(unspent_tx_outs);
             }
         }
         // TODO: return error
@@ -98,7 +98,7 @@ impl BlockChain {
     fn is_valid(
         &self,
         validator: &impl Validator,
-        old_u_tx_outs: &Vec<UnspentTxOut>,
+        old_u_tx_outs: &[UnspentTxOut],
     ) -> Option<Vec<UnspentTxOut>> {
         if *self.blocks.first().unwrap() != BlockChain::get_genesis() {
             return None;
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn test_is_valid() {
         let validator = PowValidator {};
-        let mut unspent_tx_outs: Vec<UnspentTxOut> = vec![];
+        let unspent_tx_outs: Vec<UnspentTxOut> = vec![];
 
         let mut chain = BlockChain {
             blocks: vec![BlockChain::get_genesis()],

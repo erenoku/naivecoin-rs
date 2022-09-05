@@ -10,7 +10,7 @@ use std::str::from_utf8;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use std::{thread, thread::JoinHandle};
+use std::thread::JoinHandle;
 
 use crate::message::{Message, MessageType};
 use crate::p2p_handler::P2PHandler;
@@ -159,7 +159,7 @@ impl<V: Validator + Send + Sync> Server<V> {
     }
 
     pub fn broadcast(buf: &[u8]) {
-        let mut c = CONNECTIONS.write().unwrap(); // FIXME: deadlock
+        let mut c = CONNECTIONS.write().unwrap();
 
         info!("got c");
 

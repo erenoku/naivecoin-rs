@@ -122,13 +122,13 @@ impl Wallet {
         receiver_addr: String,
         amount: u64,
         private_key: &PrivateKey,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: &[UnspentTxOut],
         pool: &TransactionPool,
     ) -> Option<Transaction> {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());
         let my_unspent_tx_outs_a: Vec<UnspentTxOut> = unspent_tx_outs
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .filter(|u_tx_out| u_tx_out.address == my_addr)
             .collect();
         let my_unspent_tx_outs: Vec<UnspentTxOut> =
@@ -157,7 +157,7 @@ impl Wallet {
             .enumerate()
             .map(|(index, tx_in)| {
                 let mut t = tx_in.clone();
-                t.signature = TxIn::sign(tx.clone(), index as u64, private_key, &unspent_tx_outs);
+                t.signature = TxIn::sign(tx.clone(), index as u64, private_key, unspent_tx_outs);
                 t
             })
             .collect();

@@ -15,7 +15,7 @@ pub trait Validator {
         prev_block: &Block,
         next_block: &Block,
         chain: &BlockChain,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: &[UnspentTxOut],
     ) -> bool;
     fn find_block(&self, prev_block: &Block, data: Vec<Transaction>, difficulty: u32) -> Block;
     // fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool;

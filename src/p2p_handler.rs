@@ -60,8 +60,8 @@ impl<V: Validator + Send + Sync> P2PHandler<V> {
             }
             MessageType::ResponseTransactionPool => {
                 msg.handle_transaction_pool_response::<V>(
-                    &mut self.transaction_pool.write().unwrap(), // FIXME: deadlock
-                    &mut self.unspent_tx_outs.write().unwrap(),
+                    &mut self.transaction_pool.write().unwrap(),
+                    &self.unspent_tx_outs.write().unwrap(),
                 );
             }
         }

@@ -67,7 +67,7 @@ impl Validator for PosValidator {
         prev_block: &crate::block::Block,
         next_block: &crate::block::Block,
         chain: &crate::chain::BlockChain,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: &[UnspentTxOut],
     ) -> bool {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
         let my_balance = Wallet::get_balance(KeyPair::public_key_to_hex(pub_key), unspent_tx_outs);

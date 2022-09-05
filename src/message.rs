@@ -67,7 +67,7 @@ impl Message {
                     validator,
                 );
 
-                let latest = chain.get_latest().clone();
+                let latest = chain.get_latest();
 
                 thread::spawn(|| {
                     Message {
@@ -94,7 +94,7 @@ impl Message {
     pub fn handle_transaction_pool_response<V: Validator + Send + Sync>(
         &self,
         pool: &mut TransactionPool,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: &[UnspentTxOut],
     ) {
         let received_transactions: Vec<Transaction> =
             serde_json::from_str(&self.content).expect("error parsing json");
