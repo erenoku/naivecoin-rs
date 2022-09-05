@@ -21,21 +21,6 @@ struct InstanceConfig {
     pub initial: Vec<String>,
 }
 
-fn start_instance_a(config: &InstanceConfig) -> Child {
-    Command::new("./target/debug/naivecoin-rs")
-        .env("HTTP_PORT", &config.http_port)
-        .env("KEY_LOC", &config.key_loc)
-        .env("INITIAL", &config.initial.join(","))
-        .env("P2P_PORT", &config.p2p_port)
-        .env("RUST_LOG", String::from("INFO"))
-        .env("RUST_BACKTRACE", String::from("1"))
-        // .stdin(Stdio::null())
-        // .stdout(Stdio::null())
-        // .stderr(Stdio::null())
-        .spawn()
-        .expect("failed to execute process")
-}
-
 fn start_instance(config: &InstanceConfig) -> Child {
     Command::new("./target/debug/naivecoin-rs")
         .env("HTTP_PORT", &config.http_port)
@@ -82,16 +67,10 @@ fn start_instances() -> Vec<Child> {
             key_loc: get_tmp_key_loc(),
         },
     ];
-    for (i, config) in configs.iter().enumerate() {
-        if i != 1 {
-            let c = start_instance(config);
-            children.push(c);
-            std::thread::sleep(Duration::from_secs(1));
-        } else {
-            let c = start_instance_a(config);
-            children.push(c);
-            std::thread::sleep(Duration::from_secs(1));
-        }
+    for config in configs.iter() {
+        let c = start_instance(config);
+        children.push(c);
+        std::thread::sleep(Duration::from_secs(1));
     }
 
     children
@@ -187,7 +166,7 @@ async fn test_all() {
         for mut instance in instances {
             instance.kill().expect("could not kill child process");
             let status = instance.wait().unwrap_or(ExitStatus::from_raw(0));
-            // assert!(status.code().is_none() || status.code() == Some(0));
+            assert!(status.code().is_none() || status.code() == Some(0));
         }
     }
 

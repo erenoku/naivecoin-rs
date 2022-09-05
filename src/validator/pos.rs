@@ -28,6 +28,11 @@ fn check_special_hash(
     balance: u64,
     diff: u32,
 ) -> bool {
+    // TODO: let validator have a difficulter field
+    if diff == 0 {
+        return true;
+    }
+
     let mut balance = balance;
     if index <= ALLOW_WITHOUT_COIN_INDEX as u32 {
         balance += 1;
