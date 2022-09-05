@@ -108,11 +108,13 @@ impl Message {
             if !ok {
                 warn!("error adding transaction");
             } else {
-                Message {
+                let msg = Message {
                     m_type: MessageType::ResponseTransactionPool,
                     content: serde_json::to_string(pool).unwrap(),
-                }
-                .broadcast::<V>()
+                };
+                thread::spawn(move || {
+                    msg.broadcast::<V>();
+                });
             }
         }
     }

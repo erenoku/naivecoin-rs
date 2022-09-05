@@ -122,7 +122,7 @@ impl Wallet {
         receiver_addr: String,
         amount: u64,
         private_key: &PrivateKey,
-        unspent_tx_outs: Vec<UnspentTxOut>,
+        unspent_tx_outs: &Vec<UnspentTxOut>,
         pool: &TransactionPool,
     ) -> Option<Transaction> {
         let my_addr = KeyPair::public_key_to_hex(&private_key.to_public_key());

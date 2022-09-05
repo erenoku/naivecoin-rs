@@ -53,7 +53,6 @@ fn check_special_hash(
     if !valid {
         error!("check_special_hash false");
     }
-    info!("find");
     valid
 }
 
@@ -87,6 +86,7 @@ impl Validator for PosValidator {
         difficulty: u32,
     ) -> Block {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
+        info!("got wallet");
         let my_balance = Wallet::get_balance(
             KeyPair::public_key_to_hex(pub_key),
             &self.unspent_tx_outs.read().unwrap(),
@@ -114,7 +114,6 @@ impl Validator for PosValidator {
                 my_balance,
                 difficulty,
             ) {
-                info!("find");
                 return Block {
                     index: (prev_block.index + 1),
                     previous_hash: prev_block.hash.clone(),
@@ -126,9 +125,7 @@ impl Validator for PosValidator {
                 };
             }
 
-            // info!("sleep");
-            // thread::sleep(Duration::from_secs(1));
-            // info!("end sleep");
+            thread::sleep(Duration::from_secs_f32(0.9)); // wait a little less than 1 second
         }
     }
 }

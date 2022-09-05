@@ -21,6 +21,21 @@ struct InstanceConfig {
     pub initial: Vec<String>,
 }
 
+fn start_instance_a(config: &InstanceConfig) -> Child {
+    Command::new("./target/debug/naivecoin-rs")
+        .env("HTTP_PORT", &config.http_port)
+        .env("KEY_LOC", &config.key_loc)
+        .env("INITIAL", &config.initial.join(","))
+        .env("P2P_PORT", &config.p2p_port)
+        .env("RUST_LOG", String::from("INFO"))
+        .env("RUST_BACKTRACE", String::from("1"))
+        // .stdin(Stdio::null())
+        // .stdout(Stdio::null())
+        // .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to execute process")
+}
+
 fn start_instance(config: &InstanceConfig) -> Child {
     Command::new("./target/debug/naivecoin-rs")
         .env("HTTP_PORT", &config.http_port)
@@ -28,9 +43,9 @@ fn start_instance(config: &InstanceConfig) -> Child {
         .env("INITIAL", &config.initial.join(","))
         .env("P2P_PORT", &config.p2p_port)
         .env("RUST_LOG", String::from("INFO"))
-        // .stdin(Stdio::null())
-        // .stdout(Stdio::null())
-        // .stderr(Stdio::null())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .spawn()
         .expect("failed to execute process")
 }
@@ -67,10 +82,16 @@ fn start_instances() -> Vec<Child> {
             key_loc: get_tmp_key_loc(),
         },
     ];
-    for config in configs.iter() {
-        let c = start_instance(config);
-        children.push(c);
-        std::thread::sleep(Duration::from_secs(1));
+    for (i, config) in configs.iter().enumerate() {
+        if i != 1 {
+            let c = start_instance(config);
+            children.push(c);
+            std::thread::sleep(Duration::from_secs(1));
+        } else {
+            let c = start_instance_a(config);
+            children.push(c);
+            std::thread::sleep(Duration::from_secs(1));
+        }
     }
 
     children
@@ -161,14 +182,14 @@ async fn test_all() {
 
     println!("started");
 
-    // defer! {
-    //     println!("defering");
-    //     for mut instance in instances {
-    //         instance.kill().expect("could not kill child process");
-    //         let status = instance.wait().unwrap_or(ExitStatus::from_raw(0));
-    //         assert!(status.code().is_none() || status.code() == Some(0));
-    //     }
-    // }
+    defer! {
+        println!("defering");
+        for mut instance in instances {
+            instance.kill().expect("could not kill child process");
+            let status = instance.wait().unwrap_or(ExitStatus::from_raw(0));
+            // assert!(status.code().is_none() || status.code() == Some(0));
+        }
+    }
 
     std::thread::sleep(Duration::from_secs(1));
 
@@ -185,53 +206,53 @@ async fn test_all() {
     let balance = get_balance(&client, HTTP_PORT_0).await;
     assert_eq!(balance, 150_u32);
 
-    // std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(1));
 
     // test if blocks are received
-    // let blocks0 = get_blocks(&client, HTTP_PORT_0).await;
-    // let blocks1 = get_blocks(&client, HTTP_PORT_1).await;
-    // let blocks2 = get_blocks(&client, HTTP_PORT_2).await;
-    // assert_eq!(blocks0, blocks1);
-    // assert_eq!(blocks1, blocks2);
+    let blocks0 = get_blocks(&client, HTTP_PORT_0).await;
+    let blocks1 = get_blocks(&client, HTTP_PORT_1).await;
+    let blocks2 = get_blocks(&client, HTTP_PORT_2).await;
+    assert_eq!(blocks0, blocks1);
+    assert_eq!(blocks1, blocks2);
 
-    // println!("first");
+    println!("first");
 
-    // std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(1));
 
-    // // test if mining transactions work
-    // let addr2 = get_addr(&client, HTTP_PORT_2).await;
-    // mine_transaction(&client, HTTP_PORT_0, &addr2, 100).await;
-    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    // assert_eq!(balance0, 100_u32);
-    // assert_eq!(balance2, 100_u32);
+    // test if mining transactions work
+    let addr2 = get_addr(&client, HTTP_PORT_2).await;
+    mine_transaction(&client, HTTP_PORT_0, &addr2, 100).await;
+    let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    assert_eq!(balance0, 100_u32);
+    assert_eq!(balance2, 100_u32);
 
-    // // test if sending transactions to pool work
-    // send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
-    // send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
-    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    // assert_eq!(balance0, 100_u32);
-    // assert_eq!(balance2, 100_u32);
+    // test if sending transactions to pool work
+    send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
+    send_transaction(&client, HTTP_PORT_0, &addr2, 50).await;
+    let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    assert_eq!(balance0, 100_u32);
+    assert_eq!(balance2, 100_u32);
 
-    // std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(1));
 
-    // mine_block(&client, HTTP_PORT_1).await;
+    mine_block(&client, HTTP_PORT_1).await;
 
-    // std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs(1));
 
-    // let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    // let balance1 = get_balance(&client, HTTP_PORT_1).await;
-    // let balance2 = get_balance(&client, HTTP_PORT_2).await;
-    // assert_eq!(balance0, 0_u32);
-    // assert_eq!(balance1, 50_u32);
-    // assert_eq!(balance2, 200_u32);
+    let balance0 = get_balance(&client, HTTP_PORT_0).await;
+    let balance1 = get_balance(&client, HTTP_PORT_1).await;
+    let balance2 = get_balance(&client, HTTP_PORT_2).await;
+    assert_eq!(balance0, 0_u32);
+    assert_eq!(balance1, 50_u32);
+    assert_eq!(balance2, 200_u32);
 
-    // // check if pool has been emptied
-    // let pool0 = get_pool(&client, HTTP_PORT_0).await;
-    // let pool1 = get_pool(&client, HTTP_PORT_1).await;
-    // let pool2 = get_pool(&client, HTTP_PORT_2).await;
-    // assert_eq!(pool0.len(), 0);
-    // assert_eq!(pool0, pool1);
-    // assert_eq!(pool1, pool2);
+    // check if pool has been emptied
+    let pool0 = get_pool(&client, HTTP_PORT_0).await;
+    let pool1 = get_pool(&client, HTTP_PORT_1).await;
+    let pool2 = get_pool(&client, HTTP_PORT_2).await;
+    assert_eq!(pool0.len(), 0);
+    assert_eq!(pool0, pool1);
+    assert_eq!(pool1, pool2);
 }

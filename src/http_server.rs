@@ -73,7 +73,7 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
     let mut chain = app.block_chain.write().unwrap();
     let wallet = app.wallet.read().unwrap();
     let mut pool = app.transaction_pool.write().unwrap();
-    let mut u_tx_outs = app.unspent_tx_outs.write().unwrap();
+    let u_tx_outs = app.unspent_tx_outs.write().unwrap();
 
     if let Some(next_block) = Block::generate_next_with_transaction(
         data.address,
@@ -81,9 +81,10 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
         &chain,
         &wallet,
         &pool,
-        &u_tx_outs,
+        u_tx_outs,
         &*app.validator.read().unwrap(),
     ) {
+        let mut u_tx_outs = app.unspent_tx_outs.write().unwrap();
         chain.add(
             next_block.clone(),
             &mut pool,
@@ -95,6 +96,9 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
             m_type: MessageType::ResponseBlockchain,
             content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
         };
+        drop(chain);
+        drop(wallet);
+        drop(pool);
         msg.broadcast::<V>();
 
         rouille::Response::json(&next_block)
@@ -104,31 +108,36 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
 }
 
 fn send_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> rouille::Response {
-    let private_key = app.wallet.read().unwrap().get_private_key();
-    let mut pool = app.transaction_pool.write().unwrap();
-    let u_tx_outs = app.unspent_tx_outs.read().unwrap();
+    let (tx, msg) = {
+        let private_key = app.wallet.read().unwrap().get_private_key();
+        let mut pool = app.transaction_pool.write().unwrap();
+        let u_tx_outs = app.unspent_tx_outs.read().unwrap();
 
-    let data: TxData = serde_json::from_str(&body).expect("error parsing body");
-    let tx = Wallet::create_transaction(
-        data.address,
-        data.amount,
-        &private_key,
-        app.unspent_tx_outs.read().unwrap().to_vec(),
-        &pool,
-    )
-    .unwrap();
+        let data: TxData = serde_json::from_str(&body).expect("error parsing body");
+        let tx = Wallet::create_transaction(
+            data.address,
+            data.amount,
+            &private_key,
+            &u_tx_outs.to_vec(),
+            &pool,
+        )
+        .unwrap();
 
-    let ok = pool.add(tx.clone(), &u_tx_outs);
+        let ok = pool.add(tx.clone(), &u_tx_outs);
 
-    if !ok {
-        return rouille::Response::text("could not send transaction").with_status_code(500);
-    }
+        if !ok {
+            return rouille::Response::text("could not send transaction").with_status_code(500);
+        }
 
-    Message {
-        m_type: MessageType::ResponseTransactionPool,
-        content: serde_json::to_string(&*pool).unwrap(),
-    }
-    .broadcast::<V>();
+        (
+            tx,
+            Message {
+                m_type: MessageType::ResponseTransactionPool,
+                content: serde_json::to_string(&*pool).unwrap(),
+            },
+        )
+    };
+    msg.broadcast::<V>();
 
     rouille::Response::json(&tx)
 }
@@ -154,30 +163,28 @@ fn get_public_key<V: Validator>(app: &App<V>) -> rouille::Response {
 }
 
 fn mine_block<V: Validator + Send + Sync>(app: &App<V>) -> rouille::Response {
-    info!("mine block");
-    let mut chain = app.block_chain.write().unwrap();
-    let wallet = app.wallet.read().unwrap();
-    let mut pool = app.transaction_pool.write().unwrap();
+    let msg = {
+        let mut chain = app.block_chain.write().unwrap();
+        let wallet = app.wallet.read().unwrap();
+        let mut pool = app.transaction_pool.write().unwrap();
 
-    let next_block = Block::generate_next(&chain, &wallet, &pool, &*app.validator.read().unwrap());
+        let next_block =
+            Block::generate_next(&chain, &wallet, &pool, &*app.validator.read().unwrap());
 
-    let mut unspent_tx_outs = app.unspent_tx_outs.write().unwrap();
-    chain.add(
-        next_block,
-        &mut pool,
-        &mut unspent_tx_outs,
-        &*app.validator.read().unwrap(),
-    );
+        let mut unspent_tx_outs = app.unspent_tx_outs.write().unwrap();
+        chain.add(
+            next_block,
+            &mut pool,
+            &mut unspent_tx_outs,
+            &*app.validator.read().unwrap(),
+        );
 
-    info!("added");
-
-    let msg = Message {
-        m_type: MessageType::ResponseBlockchain,
-        content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
+        Message {
+            m_type: MessageType::ResponseBlockchain,
+            content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
+        }
     };
     msg.broadcast::<V>();
-
-    info!("return");
 
     // thread::sleep(Duration::from_secs_f32(0.5));
 

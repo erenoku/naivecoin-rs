@@ -1,7 +1,7 @@
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockWriteGuard};
 
 use crate::{
     chain::BlockChain,
@@ -114,7 +114,7 @@ impl Block {
         chain: &BlockChain,
         wallet: &Wallet,
         pool: &TransactionPool,
-        unspent_tx_outs: &Vec<UnspentTxOut>,
+        unspent_tx_outs: RwLockWriteGuard<Vec<UnspentTxOut>>, // TODO: remove state from validator
         validator: &impl Validator,
     ) -> Option<Self> {
         let public_key = wallet.get_public_key();
@@ -124,13 +124,11 @@ impl Block {
             KeyPair::public_key_to_hex(&public_key),
             (chain.get_latest().unwrap().index + 1) as u64,
         );
-        if let Some(tx) = Wallet::create_transaction(
-            receiver_addr,
-            amount,
-            &private_key,
-            unspent_tx_outs.to_vec(),
-            pool,
-        ) {
+        if let Some(tx) =
+            Wallet::create_transaction(receiver_addr, amount, &private_key, &*unspent_tx_outs, pool)
+        {
+            drop(wallet);
+            drop(unspent_tx_outs);
             return Some(Self::generate_next_raw(
                 vec![coinbase_tx, tx],
                 &chain,

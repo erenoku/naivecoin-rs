@@ -159,7 +159,7 @@ impl<V: Validator + Send + Sync> Server<V> {
     }
 
     pub fn broadcast(buf: &[u8]) {
-        let mut c = CONNECTIONS.write().unwrap();
+        let mut c = CONNECTIONS.write().unwrap(); // FIXME: deadlock
 
         info!("got c");
 

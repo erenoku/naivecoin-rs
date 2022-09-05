@@ -5,7 +5,7 @@ use naivecoin_rs::chain::BlockChain;
 use naivecoin_rs::p2p_handler::P2PHandler;
 use naivecoin_rs::transaction::UnspentTxOut;
 use naivecoin_rs::transaction_pool::TransactionPool;
-use naivecoin_rs::validator::pos::PosValidator;
+// use naivecoin_rs::validator::pos::PosValidator;
 use naivecoin_rs::validator::pow::PowValidator;
 use naivecoin_rs::validator::Validator;
 use serde::{Deserialize, Serialize};
