@@ -85,6 +85,8 @@ impl BlockChain {
             hash: String::new(),
             difficulty: START_DIFFICULTY,
             nonce: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
 
         let hash = g.calculate_hash();
@@ -160,6 +162,8 @@ mod tests {
             hash: String::new(),
             difficulty: 0,
             nonce: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         second.hash = second.calculate_hash();
         // Don't add new blocks like this there is a dedicated function for this called add
@@ -174,6 +178,8 @@ mod tests {
             hash: String::new(),
             difficulty: 0,
             nonce: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         third.hash = third.calculate_hash();
         let mut c1 = chain.clone();
@@ -188,6 +194,8 @@ mod tests {
             hash: String::new(),
             difficulty: 0,
             nonce: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         forth.hash = forth.calculate_hash();
         chain.blocks.push(forth);
@@ -211,6 +219,8 @@ mod tests {
                     hash: String::new(),
                     difficulty: 0,
                     nonce: 0,
+                    miner_address: String::new(),
+                    miner_balance: 0,
                 },
             ],
         };
@@ -225,6 +235,8 @@ mod tests {
             hash: String::new(),
             difficulty: 0,
             nonce: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         new_block.hash = new_block.calculate_hash();
         let mut new_chain = original.clone();

@@ -143,7 +143,7 @@ fn get_balance<V: Validator>(app: &App<V>) -> rouille::Response {
     let u_tx_outs = app.unspent_tx_outs.read().unwrap();
 
     let pub_key = wallet.get_public_key();
-    let balance = Wallet::get_balance(KeyPair::public_key_to_hex(&pub_key), &u_tx_outs);
+    let balance = Wallet::get_balance(&KeyPair::public_key_to_hex(&pub_key), &u_tx_outs);
 
     rouille::Response::text(balance.to_string())
 }

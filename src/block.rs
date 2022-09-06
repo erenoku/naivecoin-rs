@@ -22,8 +22,8 @@ pub struct Block {
     pub hash: String,
     pub nonce: u32,
     pub difficulty: u32,
-    // pub creator_address: String,
-    // pub creator_balance
+    pub miner_address: String,
+    pub miner_balance: u64, // TODO: calculate this with unspent_tx_outs so people don't fake it
 }
 
 impl Block {
@@ -36,6 +36,7 @@ impl Block {
             &self.data,
             &self.difficulty,
             &self.nonce,
+            &self.miner_address,
         )
     }
 
@@ -61,6 +62,7 @@ impl Block {
         data: &[Transaction],
         difficulty: &u32,
         nonce: &u32,
+        miner_address: &String,
     ) -> String {
         let mut hasher = Sha256::new();
 
@@ -72,6 +74,7 @@ impl Block {
         }
         hasher.update(difficulty.to_be_bytes());
         hasher.update(nonce.to_be_bytes());
+        hasher.update(miner_address.as_bytes());
 
         format!("{:x}", hasher.finalize())
     }

@@ -44,10 +44,10 @@ impl Wallet {
         self.get_private_key()
     }
 
-    pub fn get_balance(address: String, unspent_tx_outs: &[UnspentTxOut]) -> u64 {
+    pub fn get_balance(address: &String, unspent_tx_outs: &[UnspentTxOut]) -> u64 {
         unspent_tx_outs
             .iter()
-            .filter(|u_tx_out| u_tx_out.address == address)
+            .filter(|u_tx_out| u_tx_out.address == *address)
             .map(|u_tx_out| u_tx_out.amount)
             .sum()
     }

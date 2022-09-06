@@ -68,6 +68,8 @@ mod tests {
             hash: String::new(),
             nonce: 0,
             difficulty: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         // the blocks are not validated so we can easily make up blocks
         let mut chain = BlockChain {
@@ -96,6 +98,8 @@ mod tests {
             hash: String::new(),
             nonce: 0,
             difficulty: 0,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         // the blocks are not validated so we can easily make up blocks
         chain = BlockChain {
@@ -123,6 +127,8 @@ mod tests {
             hash: String::new(),
             nonce: 0,
             difficulty: 5,
+            miner_address: String::new(),
+            miner_balance: 0,
         };
         // the blocks are not validated so we can easily make up blocks
         chain = BlockChain {
@@ -135,6 +141,8 @@ mod tests {
                     hash: String::new(),
                     nonce: 0,
                     difficulty: 5,
+                    miner_address: String::new(),
+                    miner_balance: 0,
                 },
                 block.clone(),
                 block.clone(),

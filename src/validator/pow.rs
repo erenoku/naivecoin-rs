@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::{block::Block, chain::BlockChain, transaction::UnspentTxOut, validator::Validator};
 
 #[derive(Debug)]
-pub struct PowValidator;
+pub struct PowValidator {}
 
 impl PowValidator {
     fn has_valid_hash(hash: &str, difficulty: &u32, is_validate: bool) -> bool {
@@ -101,6 +101,7 @@ impl Validator for PowValidator {
                 &data,
                 &difficulty,
                 &nonce,
+                &String::new(),
             );
 
             if PowValidator::has_valid_hash(&hash, &difficulty, false) {
@@ -112,6 +113,8 @@ impl Validator for PowValidator {
                     hash,
                     difficulty,
                     nonce,
+                    miner_balance: 0,
+                    miner_address: String::new(),
                 };
             }
             nonce += 1;

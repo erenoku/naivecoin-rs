@@ -70,7 +70,7 @@ impl Validator for PosValidator {
         unspent_tx_outs: &[UnspentTxOut],
     ) -> bool {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
-        let my_balance = Wallet::get_balance(KeyPair::public_key_to_hex(pub_key), unspent_tx_outs);
+        let my_balance = Wallet::get_balance(&KeyPair::public_key_to_hex(pub_key), unspent_tx_outs);
         check_special_hash(
             next_block.index,
             prev_block.hash.as_bytes(),
@@ -91,11 +91,8 @@ impl Validator for PosValidator {
         difficulty: u32,
     ) -> Block {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
-        info!("got wallet");
-        let my_balance = Wallet::get_balance(
-            KeyPair::public_key_to_hex(pub_key),
-            &self.unspent_tx_outs.read().unwrap(),
-        );
+        let my_addr = KeyPair::public_key_to_hex(pub_key);
+        let my_balance = Wallet::get_balance(&my_addr, &self.unspent_tx_outs.read().unwrap());
 
         loop {
             let timestamp = SystemTime::now()
@@ -110,6 +107,7 @@ impl Validator for PosValidator {
                 &data,
                 &difficulty,
                 &0,
+                &String::new(),
             );
 
             if check_special_hash(
@@ -127,6 +125,8 @@ impl Validator for PosValidator {
                     hash,
                     difficulty,
                     nonce: 0,
+                    miner_address: String::new(),
+                    miner_balance: my_balance,
                 };
             }
 
