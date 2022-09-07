@@ -175,6 +175,8 @@ async fn test_all() {
     let client = Client::new();
 
     // test mining and getting balance
+    mine_block(&client, HTTP_PORT_1).await;
+    mine_block(&client, HTTP_PORT_1).await;
     for _ in 0..15 {
         mine_block(&client, HTTP_PORT_0).await;
         std::thread::sleep(Duration::from_secs_f32(0.1));
@@ -218,7 +220,7 @@ async fn test_all() {
     std::thread::sleep(Duration::from_secs(1));
 
     let balance0 = get_balance(&client, HTTP_PORT_0).await;
-    let balance1 = get_balance(&client, HTTP_PORT_1).await;
+    let balance1 = get_balance(&client, HTTP_PORT_1).await - 100;
     let balance2 = get_balance(&client, HTTP_PORT_2).await;
     assert_eq!(balance0, 600_u32);
     assert_eq!(balance1, 50_u32);

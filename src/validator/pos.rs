@@ -24,7 +24,7 @@ const ALLOW_WITHOUT_COIN_INDEX: u8 = 10;
 fn check_special_hash(
     index: u32,
     prev_hash: &[u8],
-    address: String,
+    address: &String,
     balance: u64,
     diff: u32,
 ) -> bool {
@@ -67,15 +67,16 @@ impl Validator for PosValidator {
         prev_block: &crate::block::Block,
         next_block: &crate::block::Block,
         chain: &crate::chain::BlockChain,
-        unspent_tx_outs: &[UnspentTxOut],
+        _unspent_tx_outs: &[UnspentTxOut],
     ) -> bool {
-        let pub_key = &self.wallet.read().unwrap().get_public_key();
-        let my_balance = Wallet::get_balance(&KeyPair::public_key_to_hex(pub_key), unspent_tx_outs);
+        info!("prev_block: {:?}", prev_block);
+        info!("next_block: {:?}", next_block);
+
         check_special_hash(
             next_block.index,
             prev_block.hash.as_bytes(),
-            KeyPair::public_key_to_hex(pub_key),
-            my_balance,
+            &next_block.miner_address,
+            next_block.miner_balance,
             next_block.difficulty,
         ) && prev_block.index + 1 == next_block.index
             && prev_block.hash == next_block.previous_hash
@@ -92,6 +93,7 @@ impl Validator for PosValidator {
     ) -> Block {
         let pub_key = &self.wallet.read().unwrap().get_public_key();
         let my_addr = KeyPair::public_key_to_hex(pub_key);
+        info!("my_addr: {}", my_addr);
         let my_balance = Wallet::get_balance(&my_addr, &self.unspent_tx_outs.read().unwrap());
 
         loop {
@@ -107,13 +109,13 @@ impl Validator for PosValidator {
                 &data,
                 &difficulty,
                 &0,
-                &String::new(),
+                &my_addr,
             );
 
             if check_special_hash(
                 prev_block.index + 1,
                 prev_block.hash.as_bytes(),
-                KeyPair::public_key_to_hex(pub_key),
+                &my_addr,
                 my_balance,
                 difficulty,
             ) {
@@ -125,7 +127,7 @@ impl Validator for PosValidator {
                     hash,
                     difficulty,
                     nonce: 0,
-                    miner_address: String::new(),
+                    miner_address: my_addr,
                     miner_balance: my_balance,
                 };
             }

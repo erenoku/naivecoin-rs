@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 
 use crate::block::Block;
 use crate::difficulter::simple::{SimpleDifficulter, START_DIFFICULTY};
@@ -44,6 +44,8 @@ impl BlockChain {
                 *unspent_tx_outs = ret_val;
                 pool.update(unspent_tx_outs);
             }
+        } else {
+            error!("cannot add block");
         }
     }
 

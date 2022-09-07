@@ -73,9 +73,9 @@ fn main() {
         signing_key_location: config.key_location,
     }));
     let unspent_tx_outs: Arc<RwLock<Vec<UnspentTxOut>>> = Default::default();
-    let validator = Arc::new(RwLock::new(PowValidator {
-        // wallet: wallet.clone(),
-        // unspent_tx_outs: unspent_tx_outs.clone(),
+    let validator = Arc::new(RwLock::new(PosValidator {
+        wallet: wallet.clone(),
+        unspent_tx_outs: unspent_tx_outs.clone(),
     }));
     let app = Arc::new(RwLock::new(App::new(validator, wallet, unspent_tx_outs)));
 
@@ -85,7 +85,7 @@ fn main() {
         }
 
         if let Ok(peer) = peer.parse() {
-            Server::<PowValidator>::connect_to_peer(peer);
+            Server::<PosValidator>::connect_to_peer(peer);
         } else {
             error!("could not parse peer: {}", &peer);
         }
