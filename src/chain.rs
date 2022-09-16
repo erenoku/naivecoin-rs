@@ -207,8 +207,8 @@ mod tests {
     #[test]
     fn test_replace() {
         let validator = PowValidator {};
-        let mut pool: TransactionPool = Default::default();
-        let mut unspent_tx_outs: Vec<UnspentTxOut> = Default::default();
+        let mut pool: TransactionPool = TransactionPool::default();
+        let mut unspent_tx_outs: Vec<UnspentTxOut> = Vec::default();
 
         let mut original = BlockChain {
             blocks: vec![

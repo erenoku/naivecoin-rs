@@ -71,7 +71,7 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
     let mut pool = app.transaction_pool.write().unwrap();
     let u_tx_outs = app.unspent_tx_outs.write().unwrap();
 
-    if let Some(next_block) = Block::generate_next_with_transaction(
+    Block::generate_next_with_transaction(
         data.address,
         data.amount,
         &chain,
@@ -79,28 +79,30 @@ fn mine_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> r
         &pool,
         u_tx_outs,
         &*app.validator.read().unwrap(),
-    ) {
-        let mut u_tx_outs = app.unspent_tx_outs.write().unwrap();
-        chain.add(
-            next_block.clone(),
-            &mut pool,
-            &mut u_tx_outs,
-            &*app.validator.read().unwrap(),
-        );
+    )
+    .map_or_else(
+        || rouille::Response::text("error mining transaction").with_status_code(500),
+        |next_block| {
+            let mut u_tx_outs = app.unspent_tx_outs.write().unwrap();
+            chain.add(
+                next_block.clone(),
+                &mut pool,
+                &mut u_tx_outs,
+                &*app.validator.read().unwrap(),
+            );
 
-        let msg = Message {
-            m_type: MessageType::ResponseBlockchain,
-            content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
-        };
-        drop(chain);
-        drop(wallet);
-        drop(pool);
-        msg.broadcast::<V>();
+            let msg = Message {
+                m_type: MessageType::ResponseBlockchain,
+                content: serde_json::to_string(&vec![chain.get_latest()]).unwrap(),
+            };
+            drop(chain);
+            drop(wallet);
+            drop(pool);
+            msg.broadcast::<V>();
 
-        rouille::Response::json(&next_block)
-    } else {
-        rouille::Response::text("error mining transaction").with_status_code(500)
-    }
+            rouille::Response::json(&next_block)
+        },
+    )
 }
 
 fn send_transaction<V: Validator + Send + Sync>(body: String, app: &App<V>) -> rouille::Response {
@@ -183,7 +185,7 @@ fn mine_block<V: Validator + Send + Sync>(app: &App<V>) -> rouille::Response {
 }
 
 pub fn init_http_server<V: Validator + Send + Sync + 'static>(
-    http_port: String,
+    http_port: &str,
     app: Arc<RwLock<App<V>>>,
 ) {
     rouille::start_server(format!("127.0.0.1:{}", http_port), move |request| {

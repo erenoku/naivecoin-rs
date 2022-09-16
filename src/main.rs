@@ -43,9 +43,9 @@ impl<V: Validator + Send + Sync> App<V> {
     ) -> App<V> {
         wallet.read().unwrap().generate_private_key();
 
-        App {
-            block_chain: Default::default(),
-            transaction_pool: Default::default(),
+        Self {
+            block_chain: Arc::default(),
+            transaction_pool: Arc::default(),
             wallet,
             unspent_tx_outs,
             validator,
@@ -55,7 +55,7 @@ impl<V: Validator + Send + Sync> App<V> {
 
 impl Config {
     pub fn from_env() -> Self {
-        Config {
+        Self {
             http_port: env::var("HTTP_PORT").unwrap_or_else(|_| String::from("8000")),
             p2p_port: env::var("P2P_PORT").unwrap_or_else(|_| String::from("5000")),
             initial_peers: env::var("INITIAL").unwrap_or_default(),
@@ -72,7 +72,7 @@ fn main() {
     let wallet = Arc::new(RwLock::new(Wallet {
         signing_key_location: config.key_location,
     }));
-    let unspent_tx_outs: Arc<RwLock<Vec<UnspentTxOut>>> = Default::default();
+    let unspent_tx_outs: Arc<RwLock<Vec<UnspentTxOut>>> = Arc::default();
     let validator = Arc::new(RwLock::new(PosValidator {
         wallet: wallet.clone(),
         unspent_tx_outs: unspent_tx_outs.clone(),
@@ -98,7 +98,7 @@ fn main() {
 
     let http_port = config.http_port.clone(); // will go inside move closure
     let happ = app.clone();
-    let http_handler = thread::spawn(move || init_http_server(http_port, happ));
+    let http_handler = thread::spawn(move || init_http_server(&http_port, happ));
 
     // TODO: signal handling and graceful shutdown
     thread::spawn(move || {

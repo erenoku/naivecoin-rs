@@ -69,7 +69,7 @@ fn start_instances() -> Vec<Child> {
             key_loc: get_tmp_key_loc(),
         },
     ];
-    for config in configs.iter() {
+    for config in &configs {
         let c = start_instance(config);
         children.push(c);
         std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
@@ -167,7 +167,7 @@ async fn test_all() {
         println!("defering");
         for mut instance in instances {
             instance.kill().expect("could not kill child process");
-            let status = instance.wait().unwrap_or(ExitStatus::from_raw(0));
+            let status = instance.wait().unwrap_or_else(|_| ExitStatus::from_raw(0));
             assert!(status.code().is_none() || status.code() == Some(0));
         }
     }

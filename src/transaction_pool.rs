@@ -8,7 +8,7 @@ pub struct TransactionPool(pub Vec<Transaction>);
 
 impl TransactionPool {
     pub fn new() -> Self {
-        Default::default()
+        TransactionPool::default()
     }
 
     pub fn add(&mut self, tx: Transaction, unspent_tx_outs: &[UnspentTxOut]) -> bool {
