@@ -14,6 +14,8 @@ const HTTP_PORT_0: &str = "8000";
 const HTTP_PORT_1: &str = "8001";
 const HTTP_PORT_2: &str = "8002";
 
+const SLEEP_DURATION: f32 = 0.5;
+
 struct InstanceConfig {
     pub http_port: String,
     pub p2p_port: String,
@@ -70,7 +72,7 @@ fn start_instances() -> Vec<Child> {
     for config in configs.iter() {
         let c = start_instance(config);
         children.push(c);
-        std::thread::sleep(Duration::from_secs(1));
+        std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
     }
 
     children
@@ -170,7 +172,7 @@ async fn test_all() {
         }
     }
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
 
     let client = Client::new();
 
@@ -184,7 +186,7 @@ async fn test_all() {
     let balance = get_balance(&client, HTTP_PORT_0).await;
     assert_eq!(balance, 750_u32);
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
 
     // test if blocks are received
     let blocks0 = get_blocks(&client, HTTP_PORT_0).await;
@@ -195,7 +197,7 @@ async fn test_all() {
 
     println!("first");
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
 
     // test if mining transactions work
     let addr2 = get_addr(&client, HTTP_PORT_2).await;
@@ -213,11 +215,11 @@ async fn test_all() {
     assert_eq!(balance0, 700_u32);
     assert_eq!(balance2, 100_u32);
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
 
     mine_block(&client, HTTP_PORT_1).await;
 
-    std::thread::sleep(Duration::from_secs(1));
+    std::thread::sleep(Duration::from_secs_f32(SLEEP_DURATION));
 
     let balance0 = get_balance(&client, HTTP_PORT_0).await;
     let balance1 = get_balance(&client, HTTP_PORT_1).await - 100;
